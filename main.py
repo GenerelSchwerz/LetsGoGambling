@@ -15,6 +15,8 @@ from PIL import Image, ImageEnhance
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
+
+
 class PokerBot:
     def __init__(self):
         self.debug = False  # add debug windows and console messages
@@ -85,7 +87,7 @@ class PokerBot:
             self.board_suits[suit] = suit_img
 
     def take_screenshot(self):
-        self.screenshot = ImageGrab.grab()
+        self.screenshot = ImageGrab.grab(xdisplay=":0")
 
     def click_element(self, location, clicks=1):
         # click at average X and Y of location tuple

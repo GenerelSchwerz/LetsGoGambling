@@ -1,0 +1,7 @@
+pyautogui
+pytesseract
+opencv-contrib-python
+scipy
+matplotlib
+treys
+poker
