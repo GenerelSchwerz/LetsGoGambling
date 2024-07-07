@@ -86,20 +86,22 @@ class NewPokerBot:
         self.detector.load_images()
         args = webdriver.ChromeOptions()
         # args.add_argument("--use-gl=shim")
-        args.add_argument('--disable-gpu')
-        args.add_argument('--headless')
-        # # full screen
-        # args.add_argument("--start-maximized")
-        # args.add_argument(" --use-angle=swiftshader")
+        args.add_argument("--disable-gpu")
+        # 
+
+        # set window size to standard 1080p
+        args.add_argument("--window-size=1920,1080")
+        args.add_argument("--start-maximized")
+        args.add_argument("--headless")
+
         self.driver = webdriver.Chrome(options=args)
 
-        # self.driver.set_network_conditions(
-        # 	offline=False,
-        # 	latency=5,  # additional latency (ms)
-        # 	download_throughput=100 * 1024,  # maximal throughput
-        # 	upload_throughput=100 * 1024,
-        # )  # maximal throughput
         return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        log.debug(f"Exiting PokerBot {NewPokerBot.currently_running}")
+        NewPokerBot.currently_running -= 1
+        self.driver.quit()
 
     def initialize(self, username: str, password: str):
         self.driver.get("https://triplejack.com")
@@ -117,7 +119,12 @@ class NewPokerBot:
         el = self.driver.find_element(By.CSS_SELECTOR, "#entry-panel > form > button")
         el.click()
 
-        self.driver.save_screenshot('test.png')
+        self.driver.save_screenshot("test.png")
+
+
+# ====================
+# Utilities
+# ====================
 
     def are_we_loading(self):
         # first try, check if loading... element is present
@@ -129,6 +136,44 @@ class NewPokerBot:
         except Exception as e:
             return True
 
+    def canvas_screenshot(self, store=True, save_loc: Union[str, None] = None) -> bytes:
+        var = self.find_canvas()
+        if not var:
+            return None
+        var = var.screenshot_as_png
+        if store:
+            self.cur_ss = var
+        if save_loc:
+            with open(save_loc, "wb") as f:
+                f.write(var)
+        return var
+    
+    def click_on_canvas(self, x: int, y: int):
+        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
+
+        ActionChains(self.driver).move_to_element_with_offset(
+            canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
+        ).move_by_offset(x, y).click().perform()
+
+# ====================
+# Game Logic
+# ====================
+        
+    def get_all_room_names(self) -> list[str]:
+        # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
+        # identify element by its id, always starts with lobby-room
+
+        try:
+            elements = self.driver.find_elements(
+                By.XPATH, "//*[starts-with(@id, 'lobby-room-')]"
+            )
+
+            return [el.text for el in elements]
+
+        except Exception as e:
+            return []
+
+
     def find_room(self, opt: Union[str, int]) -> Union[WebElement, None]:
         # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
         # identify element by its id, always starts with lobby-room
@@ -138,8 +183,10 @@ class NewPokerBot:
                 By.XPATH, "//*[starts-with(@id, 'lobby-room-')]"
             )
 
-            if isinstance(opt, int) and 0 < opt < len(elements):
-                return elements[opt]
+            if opt.isdigit():
+                if 0 < int(opt) < len(elements):
+                    return elements[int(opt)]
+                else: return None
 
             elif isinstance(opt, str):
                 for el in elements:
@@ -163,7 +210,6 @@ class NewPokerBot:
             return False
 
     def find_canvas(self):
-        # <canvas class="css-1y5z6qo" width="1920" height="1080"></canvas>
         try:
             return self.driver.find_element(By.TAG_NAME, "canvas")
         except Exception as e:
@@ -180,28 +226,23 @@ class NewPokerBot:
             else:
                 break
 
-        # wait for room selection (find the room based on terminal input from user)
-        # if room is not found, raise an error
+    
+        rooms = self.get_all_room_names()
 
-        # read from terminal
+        print("Rooms available: ")
+        for i, room in enumerate(rooms):
+            print(f"{i}: {room}")
+
         while True:
             room = input("Enter room name: ")
             room_el = self.find_room(room)
             if room_el:
-
                 while self.try_close_popup():
-                    print("trying to close pop up")
                     time.sleep(0.25)
 
                 log.debug(f"Found room {room}, joining...")
                 return room_el.click()
 
-    def click_on_canvas(self, x: int, y: int):
-        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
-
-        ActionChains(self.driver).move_to_element_with_offset(
-            canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
-        ).move_by_offset(x, y).click().perform()
 
     def sit_down(self):
         while self.try_close_popup():
@@ -211,7 +252,7 @@ class NewPokerBot:
         ss_good = self.detector.prepare_ss(ss)
         locations = self.detector.detect_sit_button(ss_good)
 
-        # pick lowest left location
+        # pick top left location
 
         locations = sorted(locations, key=lambda x: (x[1], x[0]))
 
@@ -229,46 +270,65 @@ class NewPokerBot:
 
         self.click_on_canvas(int(selection[0]), int(selection[1]))
 
-
-        # multiple options appear here. 
+        # multiple options appear here.
 
         # if we're getting a free buy in:
         # Free Rebuy - Get $
 
         # else, just sit
-        el = WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//*[text()='Sit']"))
-        )
+        try:
+            el = WebDriverWait(self.driver, 2).until(
+                EC.visibility_of_element_located((By.XPATH, "//*[text()='Sit']"))
+            )
 
-        el.click()
+            el.click()
+        except Exception as e:
+            log.debug("Could not find sit button, probably already sat at table")
+            return
+
+    def get_all_cards(self):
+        ss = self.canvas_screenshot(store=False)
+        ss_good = self.detector.prepare_ss(ss)
+
+        community_locs = self.detector.community_suits(ss_good, threshold=0.77)
+
+        print(community_locs)
+
+        for key, suit_pos in community_locs.items():
+
+            for loc in suit_pos:
+                cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        log.debug(f"Exiting PokerBot {NewPokerBot.currently_running}")
-        NewPokerBot.currently_running -= 1
-        self.driver.quit()
+        hole_locs = self.detector.hole_suits(ss_good, threshold=0.85)
 
-    def canvas_screenshot(self, store=True, save_loc: Union[str, None] = None) -> bytes:
-        var = self.find_canvas()
-        if not var:
-            return None
-        var = var.screenshot_as_png
-        if store:
-            self.cur_ss = var
-        if save_loc:
-            with open(save_loc, "wb") as f:
-                f.write(var)
-        return var
+        print(hole_locs)
+
+        for key, suit_pos in hole_locs.items():
+                
+                for loc in suit_pos:
+                    cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+        cv2.imshow("all cards", ss_good)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+        return community_locs
 
 
 def main():
     import time
 
     with NewPokerBot() as bot:
-        bot.initialize("Generel", "Rocky1928!")
+        bot.initialize("ForTheChips", "WooHoo123!")
         bot.halt_until_room_select()
         time.sleep(4)
         bot.sit_down()
+        while True:
+            bot.get_all_cards()
+            
+
         time.sleep(600)
 
 
