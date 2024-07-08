@@ -5,6 +5,7 @@ from typing import Union
 from ...abstract import PokerDetection
 from ...abstract.impl import *
 from cv2.typing import MatLike
+import cv2
 
 from treys import Card
 
