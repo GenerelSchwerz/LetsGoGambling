@@ -22,10 +22,6 @@ from eventemitter import EventEmitter
 class PokerEventHandler(ABC, EventEmitter):
 
 
-    def __init__(self):
-        pass
-
-
     @abstractmethod
     def fetch_game_instance(self) -> Any:
         pass

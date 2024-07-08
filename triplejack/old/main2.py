@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from PIL.Image import Resampling
 from scipy.stats import gaussian_kde
 
-from old.PokerDecisionMaker import *
 from PIL import Image, ImageEnhance
 from selenium import webdriver
 
@@ -25,7 +24,9 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from logging import Logger
 
-from old.newImgDetect import PokerImgDetect
+from newImgDetect import PokerImgDetect
+import time
+import random
 
 # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -92,7 +93,7 @@ class NewPokerBot:
         # set window size to standard 1080p
         args.add_argument("--window-size=1920,1080")
         args.add_argument("--start-maximized")
-        args.add_argument("--headless")
+        # args.add_argument("--headless")
 
         self.driver = webdriver.Chrome(options=args)
 

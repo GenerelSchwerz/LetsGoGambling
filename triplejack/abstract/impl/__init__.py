@@ -68,10 +68,10 @@ class PokerImgDetect:
         self.HOLE_SPADES_SUIT_BYTES = self.load_image(self.opts.hole_spades)
 
 
-    def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77):
+    def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
         return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold=threshold)
 
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77):
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         hearts = self.template_detect(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.template_detect(ss1, self.COMMUNITY_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.template_detect(ss1, self.COMMUNITY_CLUBS_SUIT_BYTES, threshold=threshold)
@@ -83,7 +83,7 @@ class PokerImgDetect:
             "spades": spades
         }
         
-    def find_hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85):
+    def find_hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
         hearts = self.template_detect(screenshot, self.HOLE_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.template_detect(screenshot, self.HOLE_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.template_detect(screenshot, self.HOLE_CLUBS_SUIT_BYTES, threshold=threshold)
@@ -159,7 +159,7 @@ class PokerImgDetect:
 
 
 
-    def     ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0):
+    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
@@ -207,6 +207,7 @@ class PokerImgDetect:
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
         result = pytesseract.image_to_string(binary, lang='eng', config=CUSTOM_CONFIG.format(psm=psm)).strip()
+   
         # can you tell what number has given me hours of trouble with tesseract and TJ font
         if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O"]):
             return '10'

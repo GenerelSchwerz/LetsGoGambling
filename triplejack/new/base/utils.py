@@ -8,6 +8,8 @@ def suit_full_name_to_abbrev(suit_full_name: str) -> str:
     elif suit_full_name == "spades":
         return "s"
     
+    raise ValueError("Invalid suit name")
+    
 
 def card_to_abbrev(card: str) -> str:
     if card == "10":    
