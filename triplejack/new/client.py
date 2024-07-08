@@ -415,8 +415,8 @@ def main():
         
         while True:
             img = bot.canvas_screenshot(store=False)
-            
-            bot.event_handler.tick(prepare_ss(img))
+            show_all_info(bot)
+            # bot.event_handler.tick(prepare_ss(img))
 
             time.sleep(2)
 
