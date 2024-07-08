@@ -15,3 +15,16 @@ def card_to_abbrev(card: str) -> str:
     if card == "10":    
         return "T"
     return card
+
+
+def pretty_str_to_int(str: str) -> int:
+
+    str = str.replace(",", "").lower()
+
+    if str[-1] == "k":
+        return int(float(str[:-1]) * 1000)
+    
+    if str[-1] == "m":
+        return int(float(str[:-1]) * 1000000)
+    
+    return int(str)
