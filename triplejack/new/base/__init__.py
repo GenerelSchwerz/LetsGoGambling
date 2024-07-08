@@ -18,39 +18,36 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         super().__init__(
             opts=PokerImgOpts(
                 folder_path="triplejack/new/base/imgs",
-                sit_button="sit.png",
-                community_hearts="heart.png",
-                community_diamonds="diamond.png",
-                community_clubs="club.png",
-                community_spades="spade.png",
-                hole_hearts="hole_heart.png",
-                hole_diamonds="hole_diamond.png",
-                hole_clubs="hole_club.png",
-                hole_spades="hole_spade.png",
+                sit_button=("sit.png", False),
+                community_hearts=("heart.png", True),
+                community_diamonds=("diamond.png", True),
+                community_clubs=("club.png", True),
+                community_spades=("spade.png", True),
+                hole_hearts=("hole_heart.png", True),
+                hole_diamonds=("hole_diamond.png", True),
+                hole_clubs=("hole_club.png", True),
+                hole_spades=("hole_spade.png", True),
+                check_button=("checkbutton.png", False),
+                call_button=("callbutton.png", False),
+                bet_button=("betbutton.png", False),
+                fold_button=("foldbutton.png", False),
+                raise_button=("raisebutton.png", False),
+                allin_button=("allinbutton.png", False)
             )
         )
 
         self.POT_BYTES = None
-        self.CHECK_BUTTON_BYTES = None
-        self.CALL_BUTTON_BYTES = None
-        self.BET_BUTTON_BYTES = None
-        self.FOLD_BUTTON_BYTES = None
-        self.RAISE_BUTTON_BYTES = None
-        self.ALLIN_BUTTON_BYTES = None
 
 
     def load_images(self):
         super().load_images()
 
         self.POT_BYTES = self.load_image("pot.png")
-        self.CALL_BUTTON_BYTES = self.load_image("callbutton.png")
-        self.CHECK_BUTTON_BYTES = self.load_image("checkbutton.png")
-        self.BET_BUTTON_BYTES = self.load_image("betbutton.png")
-        self.FOLD_BUTTON_BYTES = self.load_image("foldbutton.png")
-        self.RAISE_BUTTON_BYTES = self.load_image("raisebutton.png")
-        self.ALLIN_BUTTON_BYTES = self.load_image("allinbutton.png")
 
-
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
+        ss1 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
+        _, ss1 = cv2.threshold(ss1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return super().find_community_suits(ss1, threshold)
 
 
     def stack_size(self, img: MatLike) -> int:

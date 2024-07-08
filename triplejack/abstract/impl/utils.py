@@ -8,19 +8,27 @@ import numpy as np
 
 @dataclass
 class PokerImgOpts:
+    # (image_path, binary)
     folder_path: str
 
-    sit_button: str
+    sit_button: (str, bool)
 
-    community_hearts: str
-    community_diamonds: str
-    community_clubs: str
-    community_spades: str
+    community_hearts: (str, bool)
+    community_diamonds: (str, bool)
+    community_clubs: (str, bool)
+    community_spades: (str, bool)
 
-    hole_hearts: str
-    hole_diamonds: str
-    hole_clubs: str
-    hole_spades: str
+    hole_hearts: (str, bool)
+    hole_diamonds: (str, bool)
+    hole_clubs: (str, bool)
+    hole_spades: (str, bool)
+
+    check_button: (str, bool)
+    call_button: (str, bool)
+    bet_button: (str, bool)
+    fold_button: (str, bool)
+    raise_button: (str, bool)
+    allin_button: (str, bool)
 
 
 #  stolen code

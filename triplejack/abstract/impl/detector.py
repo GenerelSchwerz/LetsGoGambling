@@ -27,6 +27,13 @@ class PokerImgDetect:
         self.HOLE_CLUBS_SUIT_BYTES = None
         self.HOLE_SPADES_SUIT_BYTES = None
 
+        self.CHECK_BUTTON_BYTES = None
+        self.CALL_BUTTON_BYTES = None
+        self.BET_BUTTON_BYTES = None
+        self.FOLD_BUTTON_BYTES = None
+        self.RAISE_BUTTON_BYTES = None
+        self.ALLIN_BUTTON_BYTES = None
+
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
@@ -52,22 +59,25 @@ class PokerImgDetect:
         return non_max_suppression_slow(zipped, 0.3) 
 
 
-    def load_image(self, name: str, flags = cv2.IMREAD_COLOR):
-        return cv2.imread(f"{self.opts.folder_path}/{name}", flags=flags)
+    def load_image(self, name: str, flags = cv2.IMREAD_COLOR, binary = False):
+        image = cv2.imread(f"{self.opts.folder_path}/{name}", flags=flags if not binary else cv2.IMREAD_GRAYSCALE)
+        if binary:
+            _, image = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return image
 
     def load_images(self):
 
-        self.SIT_BUTTON_BYTES = self.load_image(self.opts.sit_button)
+        self.SIT_BUTTON_BYTES = self.load_image(self.opts.sit_button[0], binary=self.opts.sit_button[1])
 
-        self.COMMUNITY_HEART_SUIT_BYTES = self.load_image(self.opts.community_hearts)
-        self.COMMUNITY_DIAMONDS_SUIT_BYTES = self.load_image(self.opts.community_diamonds)
-        self.COMMUNITY_CLUBS_SUIT_BYTES = self.load_image(self.opts.community_clubs)
-        self.COMMUNITY_SPADES_SUIT_BYTES = self.load_image(self.opts.community_spades)
+        self.COMMUNITY_HEART_SUIT_BYTES = self.load_image(self.opts.community_hearts[0], binary=self.opts.community_hearts[1])
+        self.COMMUNITY_DIAMONDS_SUIT_BYTES = self.load_image(self.opts.community_diamonds[0], binary=self.opts.community_diamonds[1])
+        self.COMMUNITY_CLUBS_SUIT_BYTES = self.load_image(self.opts.community_clubs[0], binary=self.opts.community_clubs[1])
+        self.COMMUNITY_SPADES_SUIT_BYTES = self.load_image(self.opts.community_spades[0], binary=self.opts.community_spades[1])
 
-        self.HOLE_HEART_SUIT_BYTES = self.load_image(self.opts.hole_hearts)
-        self.HOLE_DIAMONDS_SUIT_BYTES = self.load_image(self.opts.hole_diamonds)
-        self.HOLE_CLUBS_SUIT_BYTES = self.load_image(self.opts.hole_clubs)
-        self.HOLE_SPADES_SUIT_BYTES = self.load_image(self.opts.hole_spades)
+        self.HOLE_HEART_SUIT_BYTES = self.load_image(self.opts.hole_hearts[0], binary=self.opts.hole_hearts[1])
+        self.HOLE_DIAMONDS_SUIT_BYTES = self.load_image(self.opts.hole_diamonds[0], binary=self.opts.hole_diamonds[1])
+        self.HOLE_CLUBS_SUIT_BYTES = self.load_image(self.opts.hole_clubs[0], binary=self.opts.hole_clubs[1])
+        self.HOLE_SPADES_SUIT_BYTES = self.load_image(self.opts.hole_spades[0], binary=self.opts.hole_spades[1])
 
 
     def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
