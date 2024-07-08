@@ -29,18 +29,55 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             )
         )
 
+        self.POT_BYTES = None
+        self.CHECK_BUTTON_BYTES = None
         self.CALL_BUTTON_BYTES = None
+        self.BET_BUTTON_BYTES = None
+        self.FOLD_BUTTON_BYTES = None
+        self.RAISE_BUTTON_BYTES = None
+        self.ALLIN_BUTTON_BYTES = None
+
 
     def load_images(self):
         super().load_images()
 
+        self.POT_BYTES = self.load_image("pot.png")
         self.CALL_BUTTON_BYTES = self.load_image("callbutton.png")
+        self.CHECK_BUTTON_BYTES = self.load_image("checkbutton.png")
+        self.BET_BUTTON_BYTES = self.load_image("betbutton.png")
+        self.FOLD_BUTTON_BYTES = self.load_image("foldbutton.png")
+        self.RAISE_BUTTON_BYTES = self.load_image("raisebutton.png")
+        self.ALLIN_BUTTON_BYTES = self.load_image("allinbutton.png")
+
+
+
 
     def stack_size(self, img: MatLike) -> int:
         return super().stack_size()
 
     def middle_pot(self, img: MatLike) -> int:
-        return super().middle_pot()
+        """
+        TODO handle multiple pots
+        """
+
+        single_pot = self.ident_one_template(img, self.POT_BYTES)
+
+        # TODO handle multiple pots
+        if single_pot is None:
+            return 0
+        
+        w, h = single_pot[2] - single_pot[0], single_pot[3] - single_pot[1]
+        subsection = (
+            single_pot[0] + w,
+            single_pot[1] - h // 6,
+            single_pot[2] + w * 4,
+            single_pot[3] + h // 6,
+        )
+
+        text = self.ocr_text_from_image(img, subsection, invert=True)
+
+        return pretty_str_to_int(text)
+
 
     def total_pot(self, img: MatLike) -> int:
         return super().total_pot()
@@ -54,16 +91,13 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def table_players(self, img: MatLike) -> list:
         return super().table_players()
 
-    def hole_cards(self, img: MatLike) -> list:
-        return super().hole_cards()
-
     def active_players(self, img: MatLike) -> list:
         return super().active_players()
 
     def big_blinds(self, img: MatLike) -> int:
         return super().big_blinds()
 
-    def get_full_cards(self, img: MatLike, loc: tuple) -> list[Card]:
+    def get_full_cards(self, img: MatLike, loc: tuple) -> list[tuple[Card, tuple[int, int, int, int]]]:
         suits = self.find_community_suits(img)
 
         ret = []
@@ -82,7 +116,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 text = self.ocr_text_from_image(img, subsection)
                 print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
-                # merge the original loc and subsection together for a larger subsection
                 loc = (
                     loc[0] - w // 6,
                     loc[1] - h - h // 6,
@@ -90,11 +123,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     loc[3],
                 )
 
-                if text == "":
-                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite("error.png", img)
-                    raise ValueError("Could not find card's text!")
-                
                 ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
 
         # sort ret by x position (want left to right)
@@ -102,44 +130,68 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         return ret
 
-
-    
-    def community_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int]]]:
+    def community_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int, int, int]]]:
         # resize image to the middle 4th of the screen
+
         h = img.shape[0]
         img = img[img.shape[0] // 4 : img.shape[0] // 4 * 3, :, :]
+
         ret = self.get_full_cards(img, None)
 
-        # shift 1/4th down
+        # shift the y position of the cards up 1/2th of the height of the image
         return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4, x[1][2], x[1][3] + h // 4)), ret))
+
+
 
     def community_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.community_cards_and_locs(img)))
 
 
-    def hole_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int]]]:
+    def hole_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int, int, int]]]:
         # resize image to the bottom 4th of the screen
         h = img.shape[0]
         img = img[img.shape[0] // 4 * 3 :, :, :]
         ret = self.get_full_cards(img, None)
 
-        # shift 3/4ths down
+        # shift the y position of the cards up 1/2th of the height of the image
         return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4 * 3, x[1][2], x[1][3] + h // 4 * 3)), ret))
-    
+
     def hole_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
     
     def sit_button(self, img: MatLike) -> list[tuple[int, int, int, int]]:
         return self.find_sit_button(img)
     
-    def call_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        locs = self.template_detect(img, self.CALL_BUTTON_BYTES, threshold=0.9)
+
+    def ident_one_template(self, img: MatLike, wanted: MatLike) -> Union[tuple[int, int, int, int], None]:
+        locs = self.template_detect(img, wanted, threshold=0.9)
 
         if len(locs) == 0:
             return None
         
         return locs[0]
+    
+    def call_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.CALL_BUTTON_BYTES)
 
+    def raise_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.RAISE_BUTTON_BYTES)
+    
+    def check_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.CHECK_BUTTON_BYTES)
+    
+    def bet_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.BET_BUTTON_BYTES)
+    
+    def fold_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.FOLD_BUTTON_BYTES)
+    
+    def allin_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(img, self.ALLIN_BUTTON_BYTES)
+    
+
+
+       
 
 
 if __name__ == "__main__":
@@ -147,14 +199,20 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/download (1).png", cv2.IMREAD_COLOR)
-    for card, loc in detect.community_cards_and_locs(img):
+    img = cv2.imread("triplejack/new/base/tests/sit_call.png", cv2.IMREAD_COLOR)
+
+
+    info = detect.community_cards_and_locs(img)
+
+    for card, loc in info:
         Card.print_pretty_card(card)
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    for card, loc in detect.hole_cards_and_locs(img):
+
+    info1 = detect.hole_cards_and_locs(img)
+    
+    for card, loc in info1:
         Card.print_pretty_card(card)
-        print(loc)
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     sit_locs = detect.find_sit_button(img)
@@ -166,6 +224,44 @@ if __name__ == "__main__":
     call_loc = detect.call_button(img)
     if call_loc is not None:
         cv2.rectangle(img, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no call button found")
+
+
+    check_loc = detect.check_button(img)
+    if check_loc is not None:
+        cv2.rectangle(img, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no check button found")
+
+    bet_loc = detect.bet_button(img)
+    if bet_loc is not None:
+        cv2.rectangle(img, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no bet button found")
+
+    fold_loc = detect.fold_button(img)
+    if fold_loc is not None:
+        cv2.rectangle(img, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no fold button found")
+
+    raise_loc = detect.raise_button(img)
+    if raise_loc is not None:
+        cv2.rectangle(img, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no raise button found")
+
+    allin_loc = detect.allin_button(img)
+    if allin_loc is not None:
+        cv2.rectangle(img, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no allin button found")
+
+    
+    pot = detect.middle_pot(img)
+    print(pot)
+
 
     cv2.imshow("img", img)
     cv2.waitKey(0)

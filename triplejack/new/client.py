@@ -1,4 +1,3 @@
-
 from typing import Self, Union
 
 
@@ -20,6 +19,7 @@ from logging import Logger
 
 from .utils import prepare_ss
 from .base import TJPokerDetect
+
 
 import time
 import random
@@ -64,6 +64,9 @@ class NewPokerBot:
 
         self.detector = TJPokerDetect()
 
+        # self.event_handler = PokerEventHandler(self.detector)
+
+
     # TODO: Specify options for driver upon entry.
     def __enter__(self, tes_path: Union[str, None] = None, **kwargs) -> Self:
         if tes_path:
@@ -77,11 +80,11 @@ class NewPokerBot:
         args = webdriver.ChromeOptions()
         # args.add_argument("--use-gl=shim")
         args.add_argument("--disable-gpu")
-        # 
+        #
 
         # set window size to standard 1080p
         args.add_argument("--window-size=1920,1080")
-        args.add_argument("--start-maximized")
+        # args.add_argument("--start-maximized")
         # args.add_argument("--headless")
 
         self.driver = webdriver.Chrome(options=args)
@@ -111,10 +114,9 @@ class NewPokerBot:
 
         self.driver.save_screenshot("test.png")
 
-
-# ====================
-# Utilities
-# ====================
+    # ====================
+    # Utilities
+    # ====================
 
     def are_we_loading(self):
         # first try, check for banner/header thingy on top of standard page
@@ -137,7 +139,7 @@ class NewPokerBot:
             with open(save_loc, "wb") as f:
                 f.write(var)
         return var
-    
+
     def click_on_canvas(self, x: int, y: int):
 
         # TODO: not accurate when not on full screen. Don't know why.
@@ -147,10 +149,10 @@ class NewPokerBot:
             canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
         ).move_by_offset(x, y).click().perform()
 
-# ====================
-# Game Logic
-# ====================
-        
+    # ====================
+    # Game Logic
+    # ====================
+
     def get_all_room_names(self) -> list[str]:
         # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
         # identify element by its id, always starts with lobby-room
@@ -165,7 +167,6 @@ class NewPokerBot:
         except Exception as e:
             return []
 
-
     def find_room(self, opt: Union[str, int]) -> Union[WebElement, None]:
         # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
         # identify element by its id, always starts with lobby-room
@@ -178,7 +179,8 @@ class NewPokerBot:
             if opt.isdigit():
                 if 0 <= int(opt) < len(elements):
                     return elements[int(opt)]
-                else: return None
+                else:
+                    return None
 
             elif isinstance(opt, str):
                 for el in elements:
@@ -218,7 +220,6 @@ class NewPokerBot:
             else:
                 break
 
-    
         rooms = self.get_all_room_names()
 
         print("Rooms available: ")
@@ -236,7 +237,6 @@ class NewPokerBot:
 
                 log.debug(f"Found room {room}, joining...")
                 return room_el.click()
-
 
     def sit_down(self):
         while self.try_close_popup():
@@ -280,33 +280,117 @@ class NewPokerBot:
             log.debug("Could not find sit button, probably already sat at table")
             return
 
-    def get_all_cards(self):
-        ss = self.canvas_screenshot(store=False, save_loc="test.png")
-        ss_good = prepare_ss(ss)
 
-        card_and_locs = self.detector.community_cards_and_locs(ss_good)
+def show_all_info(bot: NewPokerBot):
+    ss = bot.canvas_screenshot(store=False, save_loc="test.png")
+    ss_good = prepare_ss(ss)
 
-        print(card_and_locs)
+    sit_button = bot.detector.sit_button(ss_good)
 
-        for card, loc in card_and_locs:            
-            cv2.putText(ss_good, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    for loc in sit_button:
+        cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
+    call_button = bot.detector.call_button(ss_good)
 
-        card_and_locs1 = self.detector.hole_cards_and_locs(ss_good)
+    if call_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (call_button[0], call_button[1]),
+            (call_button[2], call_button[3]),
+            (0, 255, 0),
+            2,
+        )
 
+    raise_button = bot.detector.raise_button(ss_good)
 
-        for card, loc in card_and_locs1:            
-            cv2.putText(ss_good, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    if raise_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (raise_button[0], raise_button[1]),
+            (raise_button[2], raise_button[3]),
+            (0, 255, 0),
+            2,
+        )
 
+    fold_button = bot.detector.fold_button(ss_good)
 
-        cv2.imshow("all cards", ss_good)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    if fold_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (fold_button[0], fold_button[1]),
+            (fold_button[2], fold_button[3]),
+            (0, 255, 0),
+            2,
+        )
 
+    check_button = bot.detector.check_button(ss_good)
 
-        return card_and_locs
+    if check_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (check_button[0], check_button[1]),
+            (check_button[2], check_button[3]),
+            (0, 255, 0),
+            2,
+        )
+
+    bet_button = bot.detector.bet_button(ss_good)
+
+    if bet_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (bet_button[0], bet_button[1]),
+            (bet_button[2], bet_button[3]),
+            (0, 255, 0),
+            2,
+        )
+
+    allin_button = bot.detector.allin_button(ss_good)
+
+    if allin_button is not None:
+        cv2.rectangle(
+            ss_good,
+            (allin_button[0], allin_button[1]),
+            (allin_button[2], allin_button[3]),
+            (0, 255, 0),
+            2,
+        )
+
+    card_and_locs = bot.detector.community_cards_and_locs(ss_good)
+
+    print(card_and_locs)
+
+    for card, loc in card_and_locs:
+        cv2.putText(
+            ss_good,
+            Card.int_to_str(card),
+            (loc[0], loc[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+        cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+    card_and_locs1 = bot.detector.hole_cards_and_locs(ss_good)
+
+    for card, loc in card_and_locs1:
+        cv2.putText(
+            ss_good,
+            Card.int_to_str(card),
+            (loc[0], loc[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+        cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+    cv2.imshow("all cards", ss_good)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    return card_and_locs
 
 
 def main():
@@ -319,10 +403,15 @@ def main():
         # bot.sit_down()
         while bot.try_close_popup():
             time.sleep(0.25)
+
+        num = 0
+
         while True:
-            bot.get_all_cards()
-            input("next!")
-            
+            input("take pic?")
+            show_all_info(bot)
+            save = input("save?")
+            if "n" not in save:
+                bot.canvas_screenshot(save_loc=f"test-{int(time.time())}.png")
 
         time.sleep(600)
 
