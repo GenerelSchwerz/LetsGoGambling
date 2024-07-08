@@ -21,7 +21,7 @@ from .utils import prepare_ss
 from .base import TJPokerDetect
 
 
-from ..abstract.impl import PokerEventHandler
+from ..abstract.impl import PokerEventHandler, PokerEvents, PokerStages
 
 import time
 import random
@@ -228,10 +228,14 @@ class NewPokerBot:
         for i, room in enumerate(rooms):
             print(f"{i}: {room}")
 
+        print("Type 'skip' to skip room selection")
+
+       
         while True:
             room = input("Enter room name: ")
             log.debug(f"Attempting to find room {room}")
 
+            if room == "skip": break
             room_el = self.find_room(room)
             if room_el:
                 while self.try_close_popup():
@@ -406,14 +410,22 @@ def main():
         while bot.try_close_popup():
             time.sleep(0.25)
 
-        num = 0
 
+        bot.event_handler.on(PokerEvents.NEW_HAND, lambda x: print(x))
+        
         while True:
-            input("take pic?")
-            show_all_info(bot)
-            save = input("save?")
-            if "n" not in save:
-                bot.canvas_screenshot(save_loc=f"test-{int(time.time())}.png")
+            img = bot.canvas_screenshot(store=False)
+            
+            bot.event_handler.tick(prepare_ss(img))
+
+            time.sleep(2)
+
+        # while True:
+        #     input("take pic?")
+        #     show_all_info(bot)
+        #     save = input("save?")
+        #     if "n" not in save:
+        #         bot.canvas_screenshot(save_loc=f"test-{int(time.time())}.png")
 
         time.sleep(600)
 

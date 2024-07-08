@@ -38,7 +38,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.RAISE_BUTTON_BYTES = None
         self.ALLIN_BUTTON_BYTES = None
 
-
     def load_images(self):
         super().load_images()
 
@@ -115,7 +114,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 )
 
                 text = self.ocr_text_from_image(img, subsection)
-                print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
+                # print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
                 loc = (
                     loc[0] - w // 6,
@@ -123,6 +122,11 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     loc[2] + w // 6,
                     loc[3],
                 )
+
+                if text == "":
+                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
+                    cv2.imwrite("error.png", img)
+                    raise ValueError("OCR failed to find card's text")
 
                 ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
 
@@ -164,13 +168,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return self.find_sit_button(img)
     
 
-    def ident_one_template(self, img: MatLike, wanted: MatLike) -> Union[tuple[int, int, int, int], None]:
-        locs = self.template_detect(img, wanted, threshold=0.9)
-
-        if len(locs) == 0:
-            return None
-        
-        return locs[0]
     
     def call_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(img, self.CALL_BUTTON_BYTES)

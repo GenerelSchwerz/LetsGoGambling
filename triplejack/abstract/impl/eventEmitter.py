@@ -35,6 +35,21 @@ class PokerStages:
     RIVER = 3
     SHOWDOWN = 4
 
+    pretty_str = {
+        UNKNOWN: "Unknown",
+        PREFLOP: "Preflop",
+        FLOP: "Flop",
+        TURN: "Turn",
+        RIVER: "River",
+        SHOWDOWN: "Showdown"
+    
+    }
+
+    @staticmethod
+    def to_str(stage: int) -> str:
+        return PokerStages.pretty_str[stage]
+    
+
 
 
 class PokerEventHandler(EventEmitter):
@@ -48,14 +63,14 @@ class PokerEventHandler(EventEmitter):
         self.last_hand: list[Card] = []
 
     
-    def tick(self):
+    def tick(self, *args):
 
-        community_cards = self.detector.community_cards()
+        community_cards = self.detector.community_cards(*args)
 
         if len(community_cards) == 0:
             current_stage = PokerStages.PREFLOP
         
-        elif len(community_cards) == 3:
+        elif len(community_cards) <= 3: # transitioning to flop
             current_stage = PokerStages.FLOP
 
         elif len(community_cards) == 4:
@@ -67,20 +82,29 @@ class PokerEventHandler(EventEmitter):
         else:
             raise ValueError(f"Invalid number of community cards, found {len(community_cards)}")
 
+   
+        print(PokerStages.to_str(current_stage), PokerStages.to_str(self.last_stage))
+        
+        current_hand = self.detector.hole_cards(*args)
+
+        print(current_hand, self.last_hand)
+        print(community_cards)
+
         if current_stage != self.last_stage:
-            current_hand = self.detector.hole_cards()
+            current_hand = self.detector.hole_cards(*args)
 
             if current_hand != self.last_hand and current_stage == PokerStages.PREFLOP:
-                self.emit(PokerEvents.NEW_HAND, (current_hand, self.detector.players_at_table()))
-                self.last_stage = current_stage
+                self.emit(PokerEvents.NEW_HAND, (current_hand))
                 self.last_hand = current_hand
 
         elif current_stage == PokerStages.PREFLOP:
+            current_hand = self.detector.hole_cards(*args)
+
             if current_hand != self.last_hand:
-                self.emit(PokerEvents.NEW_HAND, (current_hand, self.detector.players_at_table()))
-                self.last_stage = current_stage
+                self.emit(PokerEvents.NEW_HAND, (current_hand))
                 self.last_hand = current_hand
             
+        self.last_stage = current_stage
 
 
 

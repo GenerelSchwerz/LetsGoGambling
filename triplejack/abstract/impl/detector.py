@@ -1,4 +1,5 @@
 # lazy code for now
+from typing import Union
 from .utils import *
 
 import cv2
@@ -30,7 +31,6 @@ class PokerImgDetect:
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
-        print(fullimg.shape)
         # check if fullimg is color or grayscale
         if len(fullimg.shape) == 2:
             w, h = wanted.shape[::]
@@ -43,14 +43,20 @@ class PokerImgDetect:
  
         loc = np.where(res >= threshold)
 
-        print(res[loc])
-
         zipped = np.array(
             [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
         )
 
         return non_max_suppression_slow(zipped, 0.3) 
 
+    @staticmethod
+    def ident_one_template(img: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.9) -> Union[tuple[int, int, int, int], None]:
+        locs = PokerImgDetect.template_detect(img, wanted, threshold=threshold)
+
+        if len(locs) == 0:
+            return None
+        
+        return locs[0]
 
     def load_image(self, name: str, flags = cv2.IMREAD_COLOR):
         return cv2.imread(f"{self.opts.folder_path}/{name}", flags=flags)
@@ -165,9 +171,9 @@ class PokerImgDetect:
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
-        cv2.imshow("img", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         if rotation_angle != 0:
             image = Image.fromarray(image)
