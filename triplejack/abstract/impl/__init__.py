@@ -30,7 +30,6 @@ class PokerImgDetect:
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
-        print(fullimg.shape)
         # check if fullimg is color or grayscale
         if len(fullimg.shape) == 2:
             w, h = wanted.shape[::]
@@ -47,7 +46,7 @@ class PokerImgDetect:
             [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
         )
 
-        return non_max_suppression_slow(zipped, 0.3) 
+        return non_max_suppression_slow(zipped, 0.01) 
 
 
     def load_image(self, name: str, flags = cv2.IMREAD_COLOR):
@@ -71,7 +70,7 @@ class PokerImgDetect:
     def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
         return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold=threshold)
 
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.8) -> dict[str, list[tuple[int, int, int, int]]]:
         hearts = self.template_detect(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.template_detect(ss1, self.COMMUNITY_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.template_detect(ss1, self.COMMUNITY_CLUBS_SUIT_BYTES, threshold=threshold)

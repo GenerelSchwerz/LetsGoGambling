@@ -81,23 +81,53 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
                 text = self.ocr_text_from_image(img, subsection)
                 print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
-                ret.append((loc, Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")))
+
+                # merge the original loc and subsection together for a larger subsection
+                loc = (
+                    loc[0] - w // 6,
+                    loc[1] - h - h // 6,
+                    loc[2] + w // 6,
+                    loc[3],
+                )
+
+                if text == "":
+                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
+                    cv2.imwrite("error.png", img)
+                    raise ValueError("Could not find card's text!")
+                
+                ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
 
         # sort ret by x position (want left to right)
-        ret.sort(key=lambda x: x[0][0])
+        ret.sort(key=lambda x: x[1][0])
 
-        return list(map(lambda x: x[1], ret))
+        return ret
+
+
+    
+    def community_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int]]]:
+        # resize image to the middle 4th of the screen
+        h = img.shape[0]
+        img = img[img.shape[0] // 4 : img.shape[0] // 4 * 3, :, :]
+        ret = self.get_full_cards(img, None)
+
+        # shift 1/4th down
+        return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4, x[1][2], x[1][3] + h // 4)), ret))
 
     def community_cards(self, img: MatLike) -> list[Card]:
-        # resize image to the middle 4th of the screen
-        img = img[img.shape[0] // 4 : img.shape[0] // 4 * 3, :, :]
-        return self.get_full_cards(img, None)
+        return list(map(lambda x: x[0], self.community_cards_and_locs(img)))
 
 
-    def hole_cards(self, img: MatLike) -> list[Card]:
+    def hole_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int]]]:
         # resize image to the bottom 4th of the screen
+        h = img.shape[0]
         img = img[img.shape[0] // 4 * 3 :, :, :]
-        return self.get_full_cards(img, None)
+        ret = self.get_full_cards(img, None)
+
+        # shift 3/4ths down
+        return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4 * 3, x[1][2], x[1][3] + h // 4 * 3)), ret))
+    
+    def hole_cards(self, img: MatLike) -> list[Card]:
+        return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
     
     def sit_button(self, img: MatLike) -> list[tuple[int, int, int, int]]:
         return self.find_sit_button(img)
@@ -111,14 +141,21 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return locs[0]
 
 
+
 if __name__ == "__main__":
 
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/sitting_real.png", cv2.IMREAD_COLOR)
-    Card.print_pretty_cards(detect.community_cards(img))
-    Card.print_pretty_cards(detect.hole_cards(img))
+    img = cv2.imread("triplejack/new/base/tests/download (1).png", cv2.IMREAD_COLOR)
+    for card, loc in detect.community_cards_and_locs(img):
+        Card.print_pretty_card(card)
+        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+    for card, loc in detect.hole_cards_and_locs(img):
+        Card.print_pretty_card(card)
+        print(loc)
+        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     sit_locs = detect.find_sit_button(img)
     print(sit_locs)

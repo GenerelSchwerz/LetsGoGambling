@@ -1,0 +1,331 @@
+
+from typing import Self, Union
+
+
+import cv2
+
+from selenium import webdriver
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from selenium.webdriver.remote.webelement import WebElement
+
+from treys import Card
+
+from logging import Logger
+
+from .utils import prepare_ss
+from .base import TJPokerDetect
+
+import time
+import random
+
+# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+
+def detect_holecard_locations(screenshot, expected_amt=2) -> list[tuple[int, int]]:
+    pass
+
+
+def detect_communitycard_locations(screenshot, expected_amt=5) -> list[tuple[int, int]]:
+    pass
+
+
+log = Logger("PokerBot")
+
+
+class NewPokerBot:
+
+    currently_running = 0
+
+    """
+    This class is the main class for the poker bot. It will handle all the image processing and decision making.
+    """
+
+    def __init__(
+        self, debug=False, skip_cards=False, continuous=False, big_blind=200, **kwargs
+    ):
+        self.debug = debug
+        self.skip_cards = skip_cards
+        self.continuous = continuous
+        self.big_blind = big_blind
+
+        self.driver: Union[webdriver.Chrome, None] = None
+        self.cur_ss = None
+
+        # info about itself
+        self.in_room = False
+        self.is_sitting = False
+        self.in_hand = False
+
+        self.detector = TJPokerDetect()
+
+    # TODO: Specify options for driver upon entry.
+    def __enter__(self, tes_path: Union[str, None] = None, **kwargs) -> Self:
+        if tes_path:
+            if NewPokerBot.currently_running == 0:
+                NewPokerBot.currently_running = 1
+
+        NewPokerBot.currently_running += 1
+        log.debug(f"Entering PokerBot {NewPokerBot.currently_running}")
+
+        self.detector.load_images()
+        args = webdriver.ChromeOptions()
+        # args.add_argument("--use-gl=shim")
+        args.add_argument("--disable-gpu")
+        # 
+
+        # set window size to standard 1080p
+        args.add_argument("--window-size=1920,1080")
+        args.add_argument("--start-maximized")
+        # args.add_argument("--headless")
+
+        self.driver = webdriver.Chrome(options=args)
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        log.debug(f"Exiting PokerBot {NewPokerBot.currently_running}")
+        NewPokerBot.currently_running -= 1
+        self.driver.quit()
+
+    def initialize(self, username: str, password: str):
+        self.driver.get("https://triplejack.com")
+
+        el = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "login-username-0"))
+        )
+
+        el.send_keys(username)
+
+        el = self.driver.find_element(By.ID, "login-password-0")
+        el.send_keys(password)
+
+        # login button
+        el = self.driver.find_element(By.CSS_SELECTOR, "#entry-panel > form > button")
+        el.click()
+
+        self.driver.save_screenshot("test.png")
+
+
+# ====================
+# Utilities
+# ====================
+
+    def are_we_loading(self):
+        # first try, check for banner/header thingy on top of standard page
+        # Loading...
+
+        try:
+            self.driver.find_element(By.CLASS_NAME, "css-1ogd7j7")
+            return False
+        except Exception as e:
+            return True
+
+    def canvas_screenshot(self, store=True, save_loc: Union[str, None] = None) -> bytes:
+        var = self.find_canvas()
+        if not var:
+            return None
+        var = var.screenshot_as_png
+        if store:
+            self.cur_ss = var
+        if save_loc:
+            with open(save_loc, "wb") as f:
+                f.write(var)
+        return var
+    
+    def click_on_canvas(self, x: int, y: int):
+
+        # TODO: not accurate when not on full screen. Don't know why.
+        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
+
+        ActionChains(self.driver).move_to_element_with_offset(
+            canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
+        ).move_by_offset(x, y).click().perform()
+
+# ====================
+# Game Logic
+# ====================
+        
+    def get_all_room_names(self) -> list[str]:
+        # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
+        # identify element by its id, always starts with lobby-room
+
+        try:
+            elements = self.driver.find_elements(
+                By.XPATH, "//*[starts-with(@id, 'lobby-room-')]"
+            )
+
+            return [el.text for el in elements]
+
+        except Exception as e:
+            return []
+
+
+    def find_room(self, opt: Union[str, int]) -> Union[WebElement, None]:
+        # <h6 class="MuiTypography-root MuiTypography-h6 css-1uy08o2" id="lobby-room-50"><div>Time to Grind</div></h6>
+        # identify element by its id, always starts with lobby-room
+
+        try:
+            elements = self.driver.find_elements(
+                By.XPATH, "//*[starts-with(@id, 'lobby-room-')]"
+            )
+
+            if opt.isdigit():
+                if 0 <= int(opt) < len(elements):
+                    return elements[int(opt)]
+                else: return None
+
+            elif isinstance(opt, str):
+                for el in elements:
+                    if opt.lower() in el.text.lower():
+                        return el
+                return None
+            else:
+                raise ValueError("Invalid type for opt")
+
+        except Exception as e:
+            return None
+
+    def try_close_popup(self):
+        # <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-vubbuv" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="CloseIcon"><path fill="currentColor" d="M20 6.91L17.09 4L12 9.09L6.91 4L4 6.91L9.09 12L4 17.09L6.91 20L12 14.91L17.09 20L20 17.09L14.91 12L20 6.91Z"></path></svg>
+        try:
+            # identify by data-testid
+            el = self.driver.find_element(By.CSS_SELECTOR, "[data-testid='CloseIcon']")
+            el.click()
+            return True
+        except Exception as e:
+            return False
+
+    def find_canvas(self):
+        try:
+            return self.driver.find_element(By.TAG_NAME, "canvas")
+        except Exception as e:
+            return None
+
+    def halt_until_room_select(self):
+        if self.in_room:
+            return
+
+        while True:
+            if self.are_we_loading():
+                time.sleep(0.5)
+                log.debug("Halting until room select: Page is loading...")
+            else:
+                break
+
+    
+        rooms = self.get_all_room_names()
+
+        print("Rooms available: ")
+        for i, room in enumerate(rooms):
+            print(f"{i}: {room}")
+
+        while True:
+            room = input("Enter room name: ")
+            log.debug(f"Attempting to find room {room}")
+
+            room_el = self.find_room(room)
+            if room_el:
+                while self.try_close_popup():
+                    time.sleep(0.25)
+
+                log.debug(f"Found room {room}, joining...")
+                return room_el.click()
+
+
+    def sit_down(self):
+        while self.try_close_popup():
+            time.sleep(0.25)
+
+        ss = self.canvas_screenshot(store=False)
+        ss_good = prepare_ss(ss)
+        locations = self.detector.sit_button(ss_good)
+
+        # pick top left location
+
+        locations = sorted(locations, key=lambda x: (x[1], x[0]))
+
+        # locations = [locations[0]]
+
+        # for loc in locations:
+        #     cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+        if len(locations) == 0:
+            log.error("Could not find sit button")
+            return
+
+        averages = [((pt[0] + pt[2]) // 2, ((pt[1] + pt[3]) // 2)) for pt in locations]
+        selection = averages[random.randint(0, len(averages) - 1)]
+
+        self.click_on_canvas(int(selection[0]), int(selection[1]))
+
+        # multiple options appear here.
+
+        # if we're getting a free buy in:
+        # Free Rebuy - Get $
+
+        # else, just sit
+        try:
+            el = WebDriverWait(self.driver, 2).until(
+                EC.visibility_of_element_located((By.XPATH, "//*[text()='Sit']"))
+            )
+
+            el.click()
+        except Exception as e:
+            log.debug("Could not find sit button, probably already sat at table")
+            return
+
+    def get_all_cards(self):
+        ss = self.canvas_screenshot(store=False, save_loc="test.png")
+        ss_good = prepare_ss(ss)
+
+        card_and_locs = self.detector.community_cards_and_locs(ss_good)
+
+        print(card_and_locs)
+
+        for card, loc in card_and_locs:            
+            cv2.putText(ss_good, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+
+        card_and_locs1 = self.detector.hole_cards_and_locs(ss_good)
+
+
+        for card, loc in card_and_locs1:            
+            cv2.putText(ss_good, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
+
+        cv2.imshow("all cards", ss_good)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+        return card_and_locs
+
+
+def main():
+    import time
+
+    with NewPokerBot() as bot:
+        bot.initialize("ForTheChips", "WooHoo123!")
+        bot.halt_until_room_select()
+        time.sleep(4)
+        # bot.sit_down()
+        while bot.try_close_popup():
+            time.sleep(0.25)
+        while True:
+            bot.get_all_cards()
+            input("next!")
+            
+
+        time.sleep(600)
+
+
+if __name__ == "__main__":
+    main()
