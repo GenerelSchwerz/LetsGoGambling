@@ -21,6 +21,8 @@ from .utils import prepare_ss
 from .base import TJPokerDetect
 
 
+from ..abstract.impl import PokerEventHandler
+
 import time
 import random
 
@@ -64,7 +66,7 @@ class NewPokerBot:
 
         self.detector = TJPokerDetect()
 
-        # self.event_handler = PokerEventHandler(self.detector)
+        self.event_handler = PokerEventHandler(self.detector)
 
 
     # TODO: Specify options for driver upon entry.
