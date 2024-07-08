@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from PIL.Image import Resampling
 from scipy.stats import gaussian_kde
 
-from PokerDecisionMaker import *
+from old.PokerDecisionMaker import *
 from PIL import Image, ImageEnhance
 from selenium import webdriver
 
@@ -25,9 +25,9 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from logging import Logger
 
-from newImgDetect import PokerImgDetect
+from old.newImgDetect import PokerImgDetect
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
 def detect_holecard_locations(screenshot, expected_amt=2) -> list[tuple[int, int]]:
@@ -127,7 +127,7 @@ class NewPokerBot:
 # ====================
 
     def are_we_loading(self):
-        # first try, check if loading... element is present
+        # first try, check for banner/header thingy on top of standard page
         # Loading...
 
         try:
@@ -184,7 +184,7 @@ class NewPokerBot:
             )
 
             if opt.isdigit():
-                if 0 < int(opt) < len(elements):
+                if 0 <= int(opt) < len(elements):
                     return elements[int(opt)]
                 else: return None
 
@@ -287,7 +287,7 @@ class NewPokerBot:
             return
 
     def get_all_cards(self):
-        ss = self.canvas_screenshot(store=False)
+        ss = self.canvas_screenshot(store=False, save_loc="test.png")
         ss_good = self.detector.prepare_ss(ss)
 
         community_locs = self.detector.community_suits(ss_good, threshold=0.77)
@@ -297,6 +297,9 @@ class NewPokerBot:
         for key, suit_pos in community_locs.items():
 
             for loc in suit_pos:
+                text = self.detector.card_number(ss_good, loc)
+                text = f"{key} {text}"
+                cv2.putText(ss_good, text, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
 
@@ -305,9 +308,12 @@ class NewPokerBot:
         print(hole_locs)
 
         for key, suit_pos in hole_locs.items():
-                
-                for loc in suit_pos:
-                    cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+            for loc in suit_pos:
+                text = self.detector.card_number(ss_good, loc)
+                text = f"{key} {text}"
+                cv2.putText(ss_good, text, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+
 
         cv2.imshow("all cards", ss_good)
         cv2.waitKey(0)

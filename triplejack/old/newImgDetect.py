@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pytesseract
 
 
 #  stolen code
@@ -80,7 +81,9 @@ class PokerImgDetect:
     @staticmethod
     def prepare_ss(screenshot: bytes):
         fullimg = np.frombuffer(screenshot, np.uint8)
-        return cv2.imdecode(fullimg, cv2.IMREAD_GRAYSCALE)
+        img = cv2.imdecode(fullimg, cv2.IMREAD_GRAYSCALE)
+        # return cv2.threshold(img, 127, 255, 0)
+        return img
 
     @staticmethod
     def magic_detection(fullimg: np.ndarray, wanted: np.ndarray, threshold=0.77):
@@ -155,6 +158,8 @@ class PokerImgDetect:
         # cv2.imshow("spades_hole", self.HOLE_SPADES_SUIT_BYTES)
 
         # cv2.waitKey(0)
+        # import time
+        # time.sleep(3)
         # cv2.destroyAllWindows()
 
 
@@ -164,6 +169,7 @@ class PokerImgDetect:
         return self.magic_detection(screenshot, self.SIT_BUTTON_BYTES, threshold=threshold)
     
     def community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77):
+        # _, ss1 = cv2.threshold(ss1, 127, 255, cv2.THRESH_BINARY)
         hearts = self.magic_detection(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.magic_detection(ss1, self.COMMUNITY_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.magic_detection(ss1, self.COMMUNITY_CLUBS_SUIT_BYTES, threshold=threshold)
@@ -176,6 +182,7 @@ class PokerImgDetect:
         }
         
     def hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85):
+        # _, screenshot = cv2.threshold(screenshot, 127, 255, cv2.THRESH_BINARY)
         hearts = self.magic_detection(screenshot, self.HOLE_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.magic_detection(screenshot, self.HOLE_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.magic_detection(screenshot, self.HOLE_CLUBS_SUIT_BYTES, threshold=threshold)
@@ -186,7 +193,111 @@ class PokerImgDetect:
             "clubs": clubs,
             "spades": spades
         }
+    
+    def deskew(self, image):
+        coords = np.column_stack(np.where(image > 0))
+        angle = cv2.minAreaRect(coords)[-1]
+        print(angle)
+        return image
+        if angle < -45:
+            angle = -(90 + angle)
+        else:
+            angle = -angle
+        (h, w) = image.shape[:2]
+        center = (w // 2, h // 2)
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+        return rotated
 
+
+    def card_number(self, screenshot: cv2.typing.MatLike, suit_bb: tuple[int, int, int, int], threshold=0.77):
+        w, h = suit_bb[2] - suit_bb[0], suit_bb[3] - suit_bb[1]
+
+        def setup_img(ss):
+              # Threshold to create a binary image
+            _, binary = cv2.threshold(subsection, 1, 255, cv2.THRESH_BINARY_INV)
+
+            # Find contours
+            contours, _ = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Create a mask of the same size as the image, initialized to white (255)
+            mask = np.ones_like(subsection) * 255
+            return mask, contours
+        
+        subsection = screenshot[suit_bb[1] - h - h // 6: suit_bb[1], suit_bb[0] - w // 4: suit_bb[2] + w // 4]
+
+        # area of subsectio
+        tot_area = w * h
+        mask, contours = setup_img(subsection)
+
+        # Get image dimensions
+        height, width = subsection.shape
+
+        def ident_valid_contours(contours, max_h, max_w):
+
+            # Draw only the contours that do not touch the edge
+            for contour in contours:
+
+                # eliminate contours that:
+                # touch the edge of the image AND run across an entire side of the image
+
+                x, y, w, h = cv2.boundingRect(contour)
+                if x == 0 or y == 0 or x + w == max_w or y + h == max_h:
+                    continue
+
+                # eliminate contours that:
+                # are too small
+
+                if cv2.contourArea(contour) < tot_area // 10:
+                    continue
+
+                yield contour
+
+
+
+           
+        good_cnts = list(ident_valid_contours(contours, width, height))
+        # default
+        print("tot area per")
+        if len(good_cnts) == 0:
+            cv2.drawContours(mask, contours, -1, (0), thickness=cv2.FILLED)
+        else:
+            cv2.drawContours(mask, good_cnts, -1, (0), thickness=cv2.FILLED)
+
+        # Invert the mask to get black text on white background
+        mask = cv2.bitwise_not(mask)
+
+        subsection = cv2.bitwise_not(subsection)
+        # Combine the mask with the original image
+        result = cv2.bitwise_and(subsection, subsection, mask=mask)
+        result = cv2.bitwise_not(result)
+
+        # pad the image with white pixels, crop to 33x33
+        result = cv2.copyMakeBorder(result, height // 6, height // 6, width // 4, width //4, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+
+        # resize to 33x33
+        result = cv2.resize(result, (33, 33))
+   
+        # invert
+        # subsection = cv2.bitwise_not(subsection)
+
+        subsection = self.deskew(subsection)
+
+        # configure to read only poker card numbers
+
+
+        text = pytesseract.image_to_string(result, config='--psm 10 -c tessedit_char_whitelist=0123456789AKQJ', lang='eng').strip()
+        text = text if text != "0" else "10"
+
+
+        cv2.imshow(f"Found {text} mask", mask)
+        cv2.imshow(f"Found {text} res", result)
+        cv2.imshow(f"Found {text}", subsection)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        
+        print (text, text == "0")
+        return text
     
 
 if __name__ == "__main__":
@@ -199,6 +310,10 @@ if __name__ == "__main__":
     img2 = cv2.imdecode(raw, cv2.IMREAD_GRAYSCALE)
 
     img1, img = cv2.threshold(img, 127, 255, 0)
+
+    cv2.imshow("img", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 
@@ -214,6 +329,7 @@ if __name__ == "__main__":
         for pt in locations:
             print("community", key, pt)
             cv2.rectangle(img2, (pt[0], pt[1]), (pt[2], pt[3]), (0, 255, 0), 2)
+            poker_img_detect.card_number(img, pt)
 
     locations3 = poker_img_detect.hole_suits(img, threshold=0.85)
 
@@ -221,6 +337,8 @@ if __name__ == "__main__":
         for pt in locations:
             print("hole", key, pt)
             cv2.rectangle(img2, (pt[0], pt[1]), (pt[2], pt[3]), (255, 0, 0), 2)
+
+            poker_img_detect.card_number(img2, pt)
 
 
     cv2.imwrite("result.png", img2)

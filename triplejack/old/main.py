@@ -1,3 +1,4 @@
+import datetime
 import math
 
 import pyautogui
@@ -15,17 +16,16 @@ from PIL import Image, ImageEnhance
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
-
-
 class PokerBot:
     def __init__(self):
         self.debug = False  # add debug windows and console messages
         self.skip_cards = False  # skip card detection
-        self.continuous = False  # determines whether it'll loop or just run once
+        self.continuous = True  # determines whether it'll loop or just run once
         self.big_blind = 200  # it will automatically determine this by constantly checking for the minimum bet
         # but i specify it here just so it doesn't potentially bug out the first hand or two
 
         self.screenshot = None
+        self.gray_screenshot = None
 
         # please don't make fun of me i just wanted this done
         self.holecard1_value_location = (45, 890, 52 + 70, 890 + 78)
@@ -63,7 +63,8 @@ class PokerBot:
         # this is all the bot has when it comes to "memory"
         # street is the last street it remembers, not currently used
         # threshold is the minimum threshold it has used during the hand (reset every preflop)
-        self.flags = {"street": 0, "threshold": 9}
+        self.flags = {"street": 0, "threshold": 9, "reraise": False, "bluffing": False, "betting": False,
+                      "hole1": (0, '0'), "hole2": (0, '0')}
 
         # initializing suit templates
         suits = ['s', 'c', 'h', 'd']
@@ -71,6 +72,8 @@ class PokerBot:
         board_imgs = ['boardspade.png', 'boardclub.png', 'boardheart.png', 'boarddiamond.png']
         self.hole_suits = {}
         self.board_suits = {}
+        self.templates = {}
+        self.graytemplates = {}
 
         for i, suit in enumerate(suits):
             img_name = hole_imgs[i]
@@ -86,8 +89,19 @@ class PokerBot:
             _, suit_img = cv2.threshold(suit_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             self.board_suits[suit] = suit_img
 
+    def get_template(self, image_path, grayscale):
+        if not grayscale:
+            if image_path not in self.templates:
+                self.templates[image_path] = cv2.imread(image_path, cv2.IMREAD_COLOR)
+            return self.templates[image_path]
+        else:
+            if image_path not in self.graytemplates:
+                self.graytemplates[image_path] = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            return self.graytemplates[image_path]
+
     def take_screenshot(self):
-        self.screenshot = ImageGrab.grab(xdisplay=":0")
+        self.screenshot = ImageGrab.grab()
+        self.gray_screenshot = cv2.cvtColor(np.array(self.screenshot), cv2.COLOR_RGB2GRAY)
 
     def click_element(self, location, clicks=1):
         # click at average X and Y of location tuple
@@ -137,8 +151,34 @@ class PokerBot:
         else:
             return binary_image
 
+    def eliminate_isolated_pixels(self, image):
+        output_image = image.copy()
+
+        rows, cols = image.shape
+
+        # Define the 8 neighbor directions (N, NE, E, SE, S, SW, W, NW)
+        directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+
+        # Iterate over each pixel in the image
+        for r in range(rows):
+            for c in range(cols):
+                # Only consider black pixels (value 0)
+                if image[r, c] == 0:
+                    white_count = 0
+                    # Count white neighbors
+                    for dr, dc in directions:
+                        nr, nc = r + dr, c + dc
+                        # Check if the neighbor is within the bounds of the image
+                        if 0 <= nr < rows and 0 <= nc < cols:
+                            if image[nr, nc] == 255:
+                                white_count += 1
+                    # If a black pixel is surrounded by 5 or more white pixels, convert it to white
+                    if white_count >= 5:
+                        output_image[r, c] = 255
+        return output_image
+
     def ocr_text_from_image(self, location, rotation_angle=0, psm=7, blur_size=3, invert=False, colored_text=False,
-                            erode=False, brightness=3.0, contrast=0.0, hoz_stretch=0.0):
+                            erode=False, brightness=3.0, contrast=0.0, flip=False):
         # if self.debug:
         # show the location subsection of the screenshot
         # cv2.imshow('location', np.array(self.screenshot.crop(location)))
@@ -151,18 +191,17 @@ class PokerBot:
             image = image.rotate(rotation_angle, resample=Resampling.BICUBIC, fillcolor=(255, 255, 255))
             image = np.array(image)
 
-        if not invert and not colored_text:
+        # flip and mirror the image
+        if flip:
+            image = cv2.flip(image, -1)
+
+        if not invert and not colored_text or brightness != 3.0:
             image = cv2.convertScaleAbs(image, alpha=brightness, beta=0)
 
         if contrast > 0:
             img = Image.fromarray(np.uint8(image))
             contrasted_img = ImageEnhance.Contrast(img).enhance(contrast)
             image = np.array(contrasted_img)
-
-        if hoz_stretch > 0:  # don't ask why this increases detection rate for 10's and 6's
-            image = Image.fromarray(image)
-            image = image.resize((round(hoz_stretch * image.width), image.height), resample=Resampling.BICUBIC)
-            image = np.array(image)
 
         if self.debug:
             cv2.imshow('image', image)
@@ -197,7 +236,16 @@ class PokerBot:
         # gray = cv2.resize(gray, (0, 0), fx=0.5, fy=0.5)
 
         # scale height to 33 pixels using bicubic resampling
-        gray = cv2.resize(gray, (0, 0), fx=35 / gray.shape[0], fy=35 / gray.shape[0], interpolation=cv2.INTER_CUBIC)
+        gray = cv2.resize(gray, (0, 0), fx=40 / gray.shape[0], fy=40 / gray.shape[0], interpolation=cv2.INTER_CUBIC)
+
+        # i know this effect better as feathering but everyone calls it erosion
+        if erode:
+            gray = cv2.bitwise_not(gray)
+            gray = cv2.resize(gray, (0, 0), fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            kernel = np.ones((2, 2), np.uint8)
+            gray = cv2.erode(gray, kernel, iterations=1)
+            gray = cv2.resize(gray, (0, 0), fx=1 / 2.0, fy=1 / 2.0, interpolation=cv2.INTER_CUBIC)
+            gray = cv2.bitwise_not(gray)
 
         # Apply binary thresholding
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -212,19 +260,12 @@ class PokerBot:
 
         binary = self.erase_edges(binary)
 
-        if blur_size != 1:
-            binary = cv2.bitwise_not(binary)
-            binary = cv2.medianBlur(binary, blur_size)
-            binary = cv2.bitwise_not(binary)
+        binary = self.eliminate_isolated_pixels(binary)
 
-        # i know this effect better as feathering but everyone calls it erosion
-        if erode:
-            binary = cv2.bitwise_not(binary)
-            binary = cv2.resize(binary, (0, 0), fx=2, fy=2)
-            kernel = np.ones((2, 2), np.uint8)
-            binary = cv2.erode(binary, kernel, iterations=1)
-            binary = cv2.resize(binary, (0, 0), fx=0.5, fy=0.5)
-            binary = cv2.bitwise_not(binary)
+        # if blur_size != 1:
+        #     binary = cv2.bitwise_not(binary)
+        #     binary = cv2.medianBlur(binary, blur_size)
+        #     binary = cv2.bitwise_not(binary)
 
         # Prepare a padding color
         color = [255, 255, 255]
@@ -244,7 +285,15 @@ class PokerBot:
         if self.debug:
             print(f'OCR result: {result}')
         # can you tell what number has given me hours of trouble with tesseract and TJ font
-        return '10' if any(result == char for char in ['0', 'O', '1', 'I', "70", "1O", "IO", "I0", "7O"]) else result
+        if any(result == char for char in ['1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O"]):
+            return '10'
+        if any(result == char for char in ['0', 'O']) and not flip:
+            if self.ocr_text_from_image(location, rotation_angle, psm, blur_size, invert, colored_text, erode,
+                                        brightness, contrast, flip=True) == '9':
+                return '6'
+            else:
+                return '10'
+        return result
 
     def find_and_click(self, image_path, clicks=1):
         element = self.find_element(image_path)
@@ -257,10 +306,10 @@ class PokerBot:
             return False
 
     def find_element(self, image_path, search_area=None, confidence_threshold=0.9):
-        template = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        template = self.get_template(image_path, grayscale=True)
         if search_area:
             template = template[search_area[1]:search_area[3], search_area[0]:search_area[2]]
-        screenshot = cv2.cvtColor(np.array(self.screenshot), cv2.COLOR_RGB2GRAY)
+        screenshot = self.gray_screenshot
         confidence, location = self.min_max_loc(template, screenshot)
         if confidence > confidence_threshold:
             return location
@@ -270,7 +319,7 @@ class PokerBot:
     # returns list of location each in the form of (left, top, right, bottom)
     def find_elements(self, image_path, search_area=None, confidence_threshold=0.9, block_wide=False):
         # search for all occurrences of the image and return a list of them
-        template = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        template = self.get_template(image_path, grayscale=False)
 
         screenshot = self.screenshot.crop(search_area) if search_area else self.screenshot
 
@@ -308,7 +357,7 @@ class PokerBot:
             # zero out a thin stretch of wide area about 200 pixels wide but as tall as the template
             if block_wide:
                 res[max_loc[1] - 10:max_loc[1] + template.shape[0] + 10,
-                max_loc[0] - 200:max_loc[0] + template.shape[1] + 200] = 0
+                max_loc[0] - 220:max_loc[0] + template.shape[1] + 10] = 0
 
             # show new res
             # if self.debug:
@@ -328,19 +377,19 @@ class PokerBot:
         angles = {1: -5, 2: -3, 3: 0, 4: 3, 5: 5}
 
         card_value = self.ocr_text_from_image(value_location,
-                                              rotation_angle=4 if hole_card else angles[board_card_number],
+                                              rotation_angle=3 if hole_card else angles[board_card_number],
                                               psm=10,
                                               blur_size=1,
                                               brightness=3,
                                               contrast=2,
-                                              hoz_stretch=1.1 if not hole_card else 0.0,
                                               erode=True)
         if not hole_card and card_value not in ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']:
             print(f'Board card {board_card_number} not visible ({card_value})')
             return 0, '0'
         else:
             card_value = self.map_card_value(card_value)
-            print(f'Found card with value: {card_value}')
+            if self.debug:
+                print(f'Found card with value: {card_value}')
 
         if self.debug:
             cv2.imshow('suit_location', np.array(self.screenshot.crop(suit_location)))
@@ -382,7 +431,8 @@ class PokerBot:
             print(f'Could not find suit with enough confidence')
             for suit, confidence in confidences.items():
                 print(f'{suit}: {confidence}')
-        print(f'Found card with suit: {card_suit} (Confidence: {confidences[card_suit]})')
+        if self.debug:
+            print(f'Found card with suit: {card_suit} (Confidence: {confidences[card_suit]})')
 
         return card_value, card_suit
 
@@ -428,24 +478,6 @@ class PokerBot:
                 else:
                     board_cards, holecard1, holecard2 = [], (0, '0'), (0, '0')
 
-                stack_size = self.get_stack_size()
-
-                pot_value, middle_pot_value = self.get_pot(stack_size)
-
-                num_opponents = self.get_num_opponents()
-
-                print(f'Current bet: {current_bet}')
-                min_bet = self.get_min_bet(current_bet, stack_size)
-
-                if (not (board_cards == [] and current_bet >= 10 * self.big_blind)
-                        and not current_bet >= stack_size
-                        and not (not current_bet <= self.big_blind * 3 and current_bet >= middle_pot_value)):
-                    approximate_pot = math.floor(((num_opponents + 1) * current_bet) /
-                                                 (1.5 if current_bet != self.big_blind else 1))
-                    if pot_value < approximate_pot:
-                        print(f"Pot value less than {approximate_pot}, setting it to that")
-                        pot_value = approximate_pot
-
                 if not board_cards:
                     print('PREFLOP')
                     game_stage = 0
@@ -459,10 +491,37 @@ class PokerBot:
                     print('RIVER')
                     game_stage = 3
 
-                if game_stage == 0:
+                stack_size = self.get_stack_size()
+
+                pot_value, middle_pot_value = self.get_pot(stack_size, game_stage)
+
+                num_opponents = self.get_num_opponents()
+
+                print(f'Current bet: {current_bet}')
+                min_bet = self.get_min_bet(current_bet, stack_size)
+
+                if pot_value < middle_pot_value + current_bet:
+                    pot_value = middle_pot_value + current_bet
+                    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                    file = f"error_pot_{current_time}.png"
+                    print(f"ERROR:Pot value less than middle pot value + current bet, setting it to that"
+                          f"\n\tsaving screenshot as {file}")
+                    self.screenshot.save(file)
+
+                if (self.flags["street"] > game_stage
+                        or (self.flags["hole1"] != holecard1 or self.flags["hole2"] != holecard2)):
+                    print("New hand...")
                     self.flags["threshold"] = 9
+                    self.flags["bluffing"] = False
+                    self.flags["betting"] = False
+
+                self.flags["reraise"] = False
+                if self.flags["street"] == game_stage and self.flags["betting"]:
+                    self.flags["reraise"] = True
 
                 self.flags["street"] = game_stage
+                self.flags["hole1"] = holecard1
+                self.flags["hole2"] = holecard2
 
                 print(f"Flags: {self.flags}")
 
@@ -473,16 +532,19 @@ class PokerBot:
 
                 if decision:
                     if self.continuous:
-                        self.wait_random_time(decision, stack_size, pot_value, game_stage)
+                        self.wait_random_time(decision, current_bet, pot_value, game_stage)
                     if decision == "fold":
+                        self.flags["betting"] = False
                         if not self.find_and_click('foldbutton.png'):
                             print('ERROR: Could not find fold button')
                     elif decision == "call":
+                        self.flags["betting"] = False
                         if not self.find_and_click('callbutton.png'):
                             if not self.find_and_click('checkbutton.png'):
                                 if not self.find_and_click('allinbutton.png'):
                                     print('ERROR: Could not find call, check, or allin button')
                     elif decision.startswith("bet"):
+                        self.flags["betting"] = True
                         bet_amount = int(decision.split()[1])
                         if bet_amount >= stack_size:
                             self.drag_slider('slider.png', 250)
@@ -524,7 +586,7 @@ class PokerBot:
                     self.ocr_text_from_image((bet[0], bet[3] - 5, bet[2], bet[3] + (bet[3] - bet[1])),
                                              blur_size=1,
                                              colored_text=True,
-                                             contrast=2))
+                                             contrast=2.5))
             else:
                 raiseto = self.find_element('raisetobutton.png')
                 if raiseto:
@@ -532,7 +594,7 @@ class PokerBot:
                         self.ocr_text_from_image((raiseto[0], raiseto[3] - 5, raiseto[2],
                                                   raiseto[3] + (raiseto[3] - raiseto[1])), blur_size=1,
                                                  colored_text=True,
-                                                 contrast=2))
+                                                 contrast=2.5))
                 else:
                     allin = self.find_element('allinbutton.png')
                     if allin:
@@ -540,7 +602,7 @@ class PokerBot:
                             self.ocr_text_from_image((allin[0], allin[3] - 5, allin[2],
                                                       allin[3] + (allin[3] - allin[1])), blur_size=1,
                                                      colored_text=True,
-                                                     contrast=2))
+                                                     contrast=2.5))
                     else:
                         print('ERROR: Could not find min bet')
                         min_bet = 0
@@ -599,10 +661,9 @@ class PokerBot:
             num_opponents = 1
         return num_opponents
 
-    def get_pot(self, stack_size):
+    def get_pot(self, stack_size, game_stage):
         pot = self.find_element('pot.png')
         pot_value = 0
-        middle_pot_value = 0
         if pot:
             pot_value += self.str_to_int(
                 self.ocr_text_from_image((pot[2], pot[1], pot[2] + 75, pot[3] - 2), blur_size=1,
@@ -633,18 +694,21 @@ class PokerBot:
         middle_pot_value = pot_value
 
         popups = ["allinpopup.png", "betpopup.png", "bigpopup.png", "smallpopup.png", "raisepopup.png",
-                  "callpopup.png", "postpopup.png", "popup.png"]
+                  "callpopup.png", "postpopup.png", "checkpopup.png", "popup.png"]
         for popup in popups:
+            if popup == "checkpopup.png" and game_stage > 0:
+                continue
             popup_locations = self.find_elements(popup, search_area=(233, 312, 1148, 724),
-                                                 confidence_threshold=0.85)
+                                                 confidence_threshold=0.8)
             if popup_locations:
                 for confidence, popup_location in popup_locations:
                     center_x = (popup_location[0] + popup_location[2]) // 2
                     popup_value = self.str_to_int(
                         self.ocr_text_from_image(
                             (center_x - 40, popup_location[3], center_x + 40,
-                             popup_location[3] + 20), blur_size=1,
+                             popup_location[3] + 25), blur_size=1,
                             invert=True,
+                            brightness=0.5,
                             contrast=3, erode=True))
                     if self.debug:
                         print(
@@ -702,7 +766,7 @@ class PokerBot:
         print(f'Board cards: {board_cards}')
         return board_cards, holecard1, holecard2
 
-    def wait_random_time(self, decision, stack_size, pot_value, game_stage):
+    def wait_random_time(self, decision, current_bet, pot_value, game_stage):
         if decision == "fold":
             return
         peak2_weight = 5
@@ -711,11 +775,13 @@ class PokerBot:
             if bet_amount >= pot_value:
                 peak2_weight -= 2
             if game_stage == 0:
-                peak2_weight += 3
+                peak2_weight += 5
+            if current_bet <= self.big_blind and game_stage != 0:
+                peak2_weight += 5
 
         samples = 1000
         peak1 = np.random.normal(loc=0, scale=0.2, size=int(samples / 2))
-        peak2 = np.random.normal(loc=3, scale=1, size=int(samples / peak2_weight))
+        peak2 = np.random.normal(loc=2.5, scale=1, size=int(samples / peak2_weight))
         bimodal = np.concatenate([peak1, peak2])
         density = gaussian_kde(bimodal)
 
@@ -737,7 +803,8 @@ if __name__ == "__main__":
         except Exception as e:
             print(f'An error occurred: {e}')
             cv2.destroyAllWindows()
-            file_name = f"error_{random.randint(1000000, 9999999)}.png"
+            time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            file_name = f"error_{time}.png"
             bot.screenshot.save(file_name)
             print(f"Screenshot saved as {file_name}")
             raise e

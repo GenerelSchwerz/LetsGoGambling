@@ -1,7 +1,7 @@
 import math
 import random
 
-from PokerHelper import *
+from old.PokerHelper import *
 
 
 def get_threshold(board_cards, num_opponents, game_stage, pot_odds, going_all_in, current_bet, big_blind, pot_value,
