@@ -223,6 +223,7 @@ if __name__ == "__main__":
 
     call_loc = detect.call_button(img)
     if call_loc is not None:
+        print("call button found")
         cv2.rectangle(img, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
     else:
         print("no call button found")
@@ -230,18 +231,21 @@ if __name__ == "__main__":
 
     check_loc = detect.check_button(img)
     if check_loc is not None:
+        print("check button found")
         cv2.rectangle(img, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
     else:
         print("no check button found")
 
     bet_loc = detect.bet_button(img)
     if bet_loc is not None:
+        print("bet button found")
         cv2.rectangle(img, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
     else:
         print("no bet button found")
 
     fold_loc = detect.fold_button(img)
     if fold_loc is not None:
+        print("fold button found")
         cv2.rectangle(img, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
     else:
         print("no fold button found")
@@ -254,6 +258,7 @@ if __name__ == "__main__":
 
     allin_loc = detect.allin_button(img)
     if allin_loc is not None:
+        print("allin button found")
         cv2.rectangle(img, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
     else:
         print("no allin button found")

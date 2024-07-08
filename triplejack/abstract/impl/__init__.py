@@ -43,6 +43,8 @@ class PokerImgDetect:
  
         loc = np.where(res >= threshold)
 
+        print(res[loc])
+
         zipped = np.array(
             [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
         )
