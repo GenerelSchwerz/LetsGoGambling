@@ -63,15 +63,11 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         suits = self.find_community_suits(img)
 
-        ret = {}
+        ret = []
 
         for key, locs in suits.items():
             for loc in locs:
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
-
-                cv2.imshow("img", img[loc[1] : loc[3], loc[0] : loc[2]])
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
 
                 subsection = (
                     loc[0] - w // 6,
@@ -82,13 +78,41 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
                 text = self.ocr_text_from_image(img, subsection)
 
-                if ret.get(key) is None:
-                    ret[key] = []
-                ret[key].append(
-                    Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
+            
+                ret.append((loc, Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")))
+
+        # sort ret by x position (want left to right)
+        ret.sort(key=lambda x: x[0][0])
+
+        return list(map(lambda x: x[1], ret))
+    
+    def hole_cards(self, img: MatLike) -> list[Card]:
+        # resize image to the bottom 4th of the screen
+
+        img = img[img.shape[0] // 4 * 3 :, :, :]
+      
+        suits = self.find_community_suits(img)
+
+        ret = []
+
+        for key, locs in suits.items():
+            for loc in locs:
+                w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+                subsection = (
+                    loc[0] - w // 6,
+                    loc[1] - h - h // 6,
+                    loc[2] + w // 6,
+                    loc[3] - h,
                 )
 
-        return ret
+                text = self.ocr_text_from_image(img, subsection)
+                ret.append((loc, Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")))
+
+        # sort ret by x position (want left to right)
+        ret.sort(key=lambda x: x[0][0])
+
+        return list(map(lambda x: x[1], ret))
 
 
 if __name__ == "__main__":
@@ -97,7 +121,9 @@ if __name__ == "__main__":
     detect.load_images()
 
     img = cv2.imread("triplejack/new/base/tests/download (1).png", cv2.IMREAD_COLOR)
-    for suit, cards in detect.community_cards(img).items():
-        Card.print_pretty_cards(cards)
+    Card.print_pretty_cards(detect.community_cards(img))
+      
             
+    Card.print_pretty_cards(detect.hole_cards(img))
+       
 
