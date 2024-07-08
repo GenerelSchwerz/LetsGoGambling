@@ -55,12 +55,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def big_blinds(self, img: MatLike) -> int:
         return super().big_blinds()
 
-    def community_cards(self, img: MatLike) -> list:
-
-        # resize image to the middle 4th of the screen
-
-        img = img[img.shape[0] // 4 : img.shape[0] // 4 * 3, :, :]
-
+    def get_full_cards(self, img: MatLike, loc: tuple) -> Card:
         suits = self.find_community_suits(img)
 
         ret = []
@@ -77,42 +72,24 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 )
 
                 text = self.ocr_text_from_image(img, subsection)
-
-            
                 ret.append((loc, Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")))
 
         # sort ret by x position (want left to right)
         ret.sort(key=lambda x: x[0][0])
 
         return list(map(lambda x: x[1], ret))
+
+    def community_cards(self, img: MatLike) -> list:
+        # resize image to the middle 4th of the screen
+        img = img[img.shape[0] // 4 : img.shape[0] // 4 * 3, :, :]
+        return self.get_full_cards(img, None)
+
+
     
     def hole_cards(self, img: MatLike) -> list[Card]:
         # resize image to the bottom 4th of the screen
-
         img = img[img.shape[0] // 4 * 3 :, :, :]
-      
-        suits = self.find_community_suits(img)
-
-        ret = []
-
-        for key, locs in suits.items():
-            for loc in locs:
-                w, h = loc[2] - loc[0], loc[3] - loc[1]
-
-                subsection = (
-                    loc[0] - w // 6,
-                    loc[1] - h - h // 6,
-                    loc[2] + w // 6,
-                    loc[3] - h,
-                )
-
-                text = self.ocr_text_from_image(img, subsection)
-                ret.append((loc, Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")))
-
-        # sort ret by x position (want left to right)
-        ret.sort(key=lambda x: x[0][0])
-
-        return list(map(lambda x: x[1], ret))
+        return self.get_full_cards(img, None)
 
 
 if __name__ == "__main__":
