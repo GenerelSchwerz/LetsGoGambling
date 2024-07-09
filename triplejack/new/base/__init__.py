@@ -197,7 +197,7 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/sit_call.png", cv2.IMREAD_COLOR)
+    img = cv2.imread("triplejack/new/base/tests/flush.png", cv2.IMREAD_COLOR)
 
 
     info = detect.community_cards_and_locs(img)
