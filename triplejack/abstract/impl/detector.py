@@ -38,7 +38,6 @@ class PokerImgDetect:
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
-        print(wanted.shape)
         # check if fullimg is color or grayscale
         if len(wanted.shape) == 2:
             w, h = wanted.shape[::]

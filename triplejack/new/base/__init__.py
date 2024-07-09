@@ -23,10 +23,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 community_diamonds=("diamond.png", True),
                 community_clubs=("club.png", True),
                 community_spades=("spade.png", True),
-                hole_hearts=("hole_heart.png", False),
-                hole_diamonds=("hole_diamond.png", False),
-                hole_clubs=("hole_club.png", False),
-                hole_spades=("hole_spade.png", False),
+                hole_hearts=("hole_heart.png", True),
+                hole_diamonds=("hole_diamond.png", True),
+                hole_clubs=("hole_club.png", True),
+                hole_spades=("hole_spade.png", True),
                 check_button=("checkbutton.png", False),
                 call_button=("callbutton.png", False),
                 bet_button=("betbutton.png", False),
@@ -44,9 +44,14 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.POT_BYTES = self.load_image("pot.png")
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
-        ss1 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
-        _, ss1 = cv2.threshold(ss1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        return super().find_community_suits(ss1, threshold)
+        ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
+        _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return super().find_community_suits(ss2, threshold)
+
+    def find_hole_suits(self, ss1: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
+        ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
+        _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return super().find_hole_suits(ss2, threshold)
 
 
     def stack_size(self, img: MatLike) -> int:
@@ -94,8 +99,11 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def big_blinds(self, img: MatLike) -> int:
         return super().big_blinds()
 
-    def get_full_cards(self, img: MatLike, loc: tuple) -> list[tuple[Card, tuple[int, int, int, int]]]:
-        suits = self.find_community_suits(img)
+    def get_full_cards(self, img: MatLike, loc: tuple, hole=False) -> list[tuple[Card, tuple[int, int, int, int]]]:
+        if hole:
+            suits = self.find_hole_suits(img)
+        else:
+            suits = self.find_community_suits(img)
 
         ret = []
 
@@ -105,17 +113,17 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
                 subsection = (
                     loc[0] - w // 6,
-                    loc[1] - h - h // 6,
+                    loc[1] - h,
                     loc[2] + w // 6,
                     loc[3] - h,
                 )
 
                 text = self.ocr_text_from_image(img, subsection)
-                # print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
+                print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
                 loc = (
                     loc[0] - w // 6,
-                    loc[1] - h - h // 6,
+                    loc[1] - h,
                     loc[2] + w // 6,
                     loc[3],
                 )
@@ -153,7 +161,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # resize image to the bottom 4th of the screen
         h = img.shape[0]
         img = img[img.shape[0] // 4 * 3 :, :, :]
-        ret = self.get_full_cards(img, None)
+        ret = self.get_full_cards(img, None, hole=True)
 
         # shift the y position of the cards up 1/2th of the height of the image
         return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4 * 3, x[1][2], x[1][3] + h // 4 * 3)), ret))
