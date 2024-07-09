@@ -104,10 +104,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
     def total_pot(self, img: MatLike) -> int:
         return super().total_pot()
-    
 
-    # the image you talked abt, hole card, a 9 is being detected as a 10, my bad (I think its being a zero)
-    # can you commit and push so i can get my hole cards working
+
+
     def current_bet(self, img: MatLike) -> int:
         return super().current_bet()
 
@@ -141,11 +140,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     loc[2] + w // 6,
                     loc[3] - h,
                 )
-                # wut im testing on test-1720483487.png (with new images)
 
-                # the new images fixed everything lol
-
-                text = self.ocr_text_from_image(img, subsection, psm=10, brightness=4, contrast=2)
+                text = self.ocr_text_from_image(img, subsection, psm=7)
                 print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
                 loc = (
@@ -229,9 +225,19 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/bad.png", cv2.IMREAD_COLOR)
-
-
+    img = cv2.imread("triplejack/new/base/tests/sitting_real.png", cv2.IMREAD_COLOR)
+    # why no call
+    # well uh
+    # anyway why no call
+    # tell them to kill themselves and die
+    # grrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
+    # i might call it here in a sec my head is killing me im so tired
+    # and i did my purpose anyway which was to add brightness contrast
+    # which i swear to god really helped a lot in my tests, it gets rid of the
+    # diamond poking out now.
+    # for cards?
+    # yes
+    
     info = detect.community_cards_and_locs(img)
 
     for card, loc in info:
