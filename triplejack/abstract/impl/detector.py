@@ -188,9 +188,9 @@ class PokerImgDetect:
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
-        # cv2.imshow("img", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("img", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         if rotation_angle != 0:
             image = Image.fromarray(image)

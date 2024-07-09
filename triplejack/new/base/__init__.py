@@ -20,13 +20,13 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 folder_path="triplejack/new/base/imgs",
                 sit_button=("sit.png", False),
                 community_hearts=("heart.png", True),
-                community_diamonds=("diamond.png", True),
+                community_diamonds=("diamond1.png", True),
                 community_clubs=("club.png", True),
                 community_spades=("spade.png", True),
                 hole_hearts=("hole_heart.png", True),
-                hole_diamonds=("hole_diamond.png", True),
-                hole_clubs=("hole_club.png", True),
-                hole_spades=("hole_spade.png", True),
+                hole_diamonds=("hole_diamond2.png", True),
+                hole_clubs=("hole_club2.png", True),
+                hole_spades=("hole_spade1.png", True),
                 check_button=("checkbutton.png", False),
                 call_button=("callbutton.png", False),
                 bet_button=("betbutton.png", False),
@@ -37,18 +37,22 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         )
 
         self.POT_BYTES = None
+        self.MAIN_POT_BYTES = None
+        self.SIDE_POT_BYTES = None
 
     def load_images(self):
         super().load_images()
 
         self.POT_BYTES = self.load_image("pot.png")
+        self.MAIN_POT_BYTES = self.load_image("mainpot.png")
+        self.SIDE_POT_BYTES = self.load_image("sidepot.png")
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_community_suits(ss2, threshold)
 
-    def find_hole_suits(self, ss1: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_hole_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_hole_suits(ss2, threshold)
@@ -62,28 +66,48 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         TODO handle multiple pots
         """
 
+        def ident_near(img, loc: tuple[int, int, int, int]):
+            w, h = loc[2] - loc[0], loc[3] - loc[1]
+            subsection = (
+                loc[0] + w,
+                loc[1] - h // 6,
+                loc[2] + w * 4,
+                loc[3] + h // 6,
+            )
+            text = self.ocr_text_from_image(img, subsection, invert=True)
+
+            return pretty_str_to_int(text)
+
         single_pot = self.ident_one_template(img, self.POT_BYTES)
 
-        # TODO handle multiple pots
         if single_pot is None:
-            return 0
+
+            main_pot = self.ident_one_template(img, self.MAIN_POT_BYTES)
+
+            # no pots currently visible
+            if main_pot is None:
+                return 0
+            
+            side_pots = self.template_detect(img, self.SIDE_POT_BYTES)
+            if len(side_pots) == 0:
+                return ident_near(img, main_pot)
+
+            sum = 0
+            for pot in side_pots:
+                sum += ident_near(img, pot)
+                
+            return sum + ident_near(img, main_pot)
         
-        w, h = single_pot[2] - single_pot[0], single_pot[3] - single_pot[1]
-        subsection = (
-            single_pot[0] + w,
-            single_pot[1] - h // 6,
-            single_pot[2] + w * 4,
-            single_pot[3] + h // 6,
-        )
-
-        text = self.ocr_text_from_image(img, subsection, invert=True)
-
-        return pretty_str_to_int(text)
+        else:
+            return ident_near(img, single_pot)
 
 
     def total_pot(self, img: MatLike) -> int:
         return super().total_pot()
+    
 
+    # the image you talked abt, hole card, a 9 is being detected as a 10, my bad (I think its being a zero)
+    # can you commit and push so i can get my hole cards working
     def current_bet(self, img: MatLike) -> int:
         return super().current_bet()
 
@@ -113,17 +137,20 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
                 subsection = (
                     loc[0] - w // 6,
-                    loc[1] - h,
+                    loc[1] - h - h // 6,
                     loc[2] + w // 6,
                     loc[3] - h,
                 )
+                # wut im testing on test-1720483487.png (with new images)
 
-                text = self.ocr_text_from_image(img, subsection)
+                # the new images fixed everything lol
+
+                text = self.ocr_text_from_image(img, subsection, psm=10, brightness=4, contrast=2)
                 print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
                 loc = (
                     loc[0] - w // 6,
-                    loc[1] - h,
+                    loc[1] - h - h // 6,
                     loc[2] + w // 6,
                     loc[3],
                 )
@@ -202,13 +229,14 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/flush.png", cv2.IMREAD_COLOR)
+    img = cv2.imread("triplejack/new/base/tests/bad.png", cv2.IMREAD_COLOR)
 
 
     info = detect.community_cards_and_locs(img)
 
     for card, loc in info:
         Card.print_pretty_card(card)
+        cv2.putText(img, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
 
@@ -216,12 +244,14 @@ if __name__ == "__main__":
     
     for card, loc in info1:
         Card.print_pretty_card(card)
+        cv2.putText(img, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     sit_locs = detect.find_sit_button(img)
     print(sit_locs)
 
     for loc in sit_locs:
+
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     call_loc = detect.call_button(img)
