@@ -18,7 +18,7 @@ from treys import Card
 from logging import Logger
 
 from .utils import prepare_ss
-from .base import TJPokerDetect
+from .base import TJPokerDetect, report_info
 
 
 from ..abstract.impl import PokerEventHandler, PokerEvents, PokerStages
@@ -82,10 +82,15 @@ class NewPokerBot:
         # set window size to standard 1080p
         options.add_argument("--window-size=1920,1080")
         options.add_argument("--start-maximized")
-        options.add_argument('--headless=new')
+
+        # start fullscreen
+        options.add_argument("--kiosk")
+
+        # options.add_argument('--headless=new')
 
 
         self.driver = webdriver.Chrome(options=options)
+        self.driver.maximize_window()
         # self.driver.set_window_size(1920, 1080)
 
         return self
@@ -143,6 +148,11 @@ class NewPokerBot:
 
         # TODO: not accurate when not on full screen. Don't know why.
         canvas = self.driver.find_element(By.TAG_NAME, "canvas")
+
+        # print(canvas.size["width"], canvas.size["height"])
+        # print(x, y)
+        # print(canvas.location)
+        # print(-canvas.size["width"] // 2 + x, -canvas.size["height"] // 2 + y)
 
         ActionChains(self.driver).move_to_element_with_offset(
             canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
@@ -407,7 +417,7 @@ def main():
         bot.halt_until_room_select()
         time.sleep(4) # built-in delay/transition into the website
 
-        # bot.sit_down() # sit down at table
+        bot.sit_down() # sit down at table
         while bot.try_close_popup():
             time.sleep(0.25)
 
@@ -425,8 +435,12 @@ def main():
         # main loop.
         last_time = time.time()
         while True:
-            img = bot.canvas_screenshot(store=False)
-            bot.event_handler.tick(prepare_ss(img))
+
+            # input("take screenie ")
+            img = bot.canvas_screenshot(store=False) # save_loc=f"triplejack/new/base/tests/test-{int(time.time())}.png"
+            img = prepare_ss(img)
+            # report_info(bot.detector, img)
+            bot.event_handler.tick(img)
 
             now = time.time()
             dur = max(0, 0.5 - (now - last_time))

@@ -21,9 +21,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 sit_button=("sit.png", False),
                 community_hearts=("heart.png", True),
                 community_diamonds=("diamond1.png", True),
-                community_clubs=("club.png", True),
+                community_clubs=("club1.png", True),
                 community_spades=("spade.png", True),
-                hole_hearts=("hole_heart.png", True),
+                hole_hearts=("hole_heart1.png", True),
                 hole_diamonds=("hole_diamond2.png", True),
                 hole_clubs=("hole_club2.png", True),
                 hole_spades=("hole_spade2.png", True),
@@ -40,6 +40,19 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.MAIN_POT_BYTES = None
         self.SIDE_POT_BYTES = None
 
+        # popups
+        self.CHECK_POPUP_BYTES = None
+        self.CALL_POPUP_BYTES = None
+        self.BET_POPUP_BYTES = None
+        self.RAISE_POPUP_BYTES = None
+        self.ALLIN_POPUP_BYTES = None
+        self.POST_POPUP_BYTES = None
+        self.BASE_POPUP_BYTES = None
+        self.BIG_POPUP_BYTES = None
+        self.SMALL_POPUP_BYTES = None
+
+        self.POPUP_BYTES = []
+
     def load_images(self):
         super().load_images()
 
@@ -47,7 +60,29 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.MAIN_POT_BYTES = self.load_image("mainpot.png")
         self.SIDE_POT_BYTES = self.load_image("sidepot.png")
 
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
+        self.BASE_POPUP_BYTES = self.load_image("basepopup1.png", cv2.IMREAD_UNCHANGED) # transparency
+        self.CHECK_POPUP_BYTES = self.load_image("checkpopup.png")
+        self.CALL_POPUP_BYTES = self.load_image("callpopup.png")
+        self.BET_POPUP_BYTES = self.load_image("betpopup.png")
+        self.RAISE_POPUP_BYTES = self.load_image("raisepopup.png")
+        self.ALLIN_POPUP_BYTES = self.load_image("allinpopup.png")
+        self.POST_POPUP_BYTES = self.load_image("postpopup.png")
+        self.BIG_POPUP_BYTES = self.load_image("bigpopup.png")
+        self.SMALL_POPUP_BYTES = self.load_image("smallpopup.png")
+
+        self.POPUP_BYTES = [
+            self.BASE_POPUP_BYTES,
+            self.CHECK_POPUP_BYTES,
+            self.CALL_POPUP_BYTES,
+            self.BET_POPUP_BYTES,
+            self.RAISE_POPUP_BYTES,
+            self.ALLIN_POPUP_BYTES,
+            self.POST_POPUP_BYTES,
+            self.BIG_POPUP_BYTES,
+            self.SMALL_POPUP_BYTES
+        ]
+
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_community_suits(ss2, threshold)
@@ -100,7 +135,40 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
 
     def total_pot(self, img: MatLike) -> int:
-        return super().total_pot()
+        pot = self.middle_pot(img)
+
+
+        def ident_near(img, loc: tuple[int, int, int, int]):
+            w, h = loc[2] - loc[0], loc[3] - loc[1]
+            subsection = (
+                loc[0] - w // 2,
+                loc[1] + h,
+                loc[2] + w // 2,
+                loc[3] + h * 2,
+            )
+
+            # cv2.imshow("img", img[loc[1]:loc[3], loc[0]:loc[2]])
+            # cv2.imshow("img1", img[subsection[1]:subsection[3], subsection[0]:subsection[2]])
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+            text = self.ocr_text_from_image(img, subsection, invert=True, brightness=0.5, contrast=3, erode=True)
+            
+            if text == "":
+                return 0 
+            
+            try:
+                # occasional noise breaks this
+                return pretty_str_to_int(text)
+            except ValueError:
+                return 0
+        
+        # img2 = img.copy()
+        for idx, popup in enumerate(self.POPUP_BYTES):
+            for locs in self.template_detect(img, popup, threshold=0.95):
+                pot += ident_near(img, locs)
+
+    
+        return pot
 
     def current_bet(self, img: MatLike) -> int:
         return super().current_bet()
@@ -207,14 +275,15 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
 
        
+def report_info(detector: TJPokerDetect, ss: str | cv2.typing.MatLike):
 
-
-if __name__ == "__main__":
-
-    detect = TJPokerDetect()
-    detect.load_images()
-
-    img = cv2.imread("triplejack/new/base/tests/APair.png", cv2.IMREAD_COLOR)
+    if isinstance(ss, str):
+        img = cv2.imread(filename, cv2.IMREAD_COLOR)
+       
+    else:
+         img = ss
+       
+    img2 = img.copy()
     # i'm just gonna go pass out i think please call me later if ur still up
     # i'm probably going to call it an early night
     # if you need me for anything let me know
@@ -226,78 +295,102 @@ if __name__ == "__main__":
                                         #  min_bet, num_opponents, self.big_blind, middle_pot_value, self.flags)
 # and you can make an abstract class or some shit idk and replace the "returns" inside PokerDecisionMaker with returning an enum decision thing or something anyway bye love you
 
-    info = detect.community_cards_and_locs(img)
+    info = detector.community_cards_and_locs(img)
 
     for card, loc in info:
         Card.print_pretty_card(card)
-        cv2.putText(img, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
 
-    info1 = detect.hole_cards_and_locs(img)
+    info1 = detector.hole_cards_and_locs(img)
     
     for card, loc in info1:
         Card.print_pretty_card(card)
-        cv2.putText(img, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    sit_locs = detect.sit_buttons(img)
+    sit_locs = detector.sit_buttons(img)
     print(sit_locs)
 
     for loc in sit_locs:
 
-        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    call_loc = detect.call_button(img)
+    call_loc = detector.call_button(img)
     if call_loc is not None:
         print("call button found")
         print(call_loc)
-        cv2.rectangle(img, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
     else:
         print("no call button found")
 
 
-    check_loc = detect.check_button(img)
+    check_loc = detector.check_button(img)
     if check_loc is not None:
         print("check button found")
-        cv2.rectangle(img, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
     else:
         print("no check button found")
 
-    bet_loc = detect.bet_button(img)
+    bet_loc = detector.bet_button(img)
     if bet_loc is not None:
         print("bet button found")
-        cv2.rectangle(img, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
     else:
         print("no bet button found")
 
-    fold_loc = detect.fold_button(img)
+    fold_loc = detector.fold_button(img)
     if fold_loc is not None:
         print("fold button found")
-        cv2.rectangle(img, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
     else:
         print("no fold button found")
 
-    raise_loc = detect.raise_button(img)
+    raise_loc = detector.raise_button(img)
     if raise_loc is not None:
-        cv2.rectangle(img, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
     else:
         print("no raise button found")
 
-    allin_loc = detect.allin_button(img)
+    allin_loc = detector.allin_button(img)
     if allin_loc is not None:
         print("allin button found")
-        cv2.rectangle(img, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
     else:
         print("no allin button found")
 
     
-    pot = detect.middle_pot(img)
-    print(pot)
+    mid_pot = detector.middle_pot(img)
+    print(mid_pot)
 
+    tot_pot = detector.total_pot(img)
+    print(tot_pot)
 
-    cv2.imshow("img", img)
+    filename = ss if isinstance(ss, str) else "current image"
+
+    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {cards_to_stage(info)} | mid pot {mid_pot} | tot pot {tot_pot}", img2)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+
+    detect = TJPokerDetect()
+    detect.load_images()
+    import os
+
+    # for all files in a directory, run the report_info function
+    files = os.listdir("triplejack/new/base/tests")
+    files = sorted(files)
+    files.reverse()
+    for filename in files:
+        if filename.endswith(".png"):
+            path =  os.path.join("triplejack/new/base/tests", filename)
+            print("running report_info on",path)
+            report_info(detect, path)
+        
+    
+
        
 

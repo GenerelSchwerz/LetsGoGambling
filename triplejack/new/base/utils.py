@@ -1,3 +1,7 @@
+from typing import Any
+from ...abstract.impl.eventEmitter import PokerStages
+
+
 def suit_full_name_to_abbrev(suit_full_name: str) -> str:
     if suit_full_name == "hearts":
         return "h"
@@ -28,3 +32,14 @@ def pretty_str_to_int(str: str) -> int:
         return int(float(str[:-1]) * 1000000)
     
     return int(str)
+
+
+def cards_to_stage(cards: list[Any]) -> PokerStages:
+    if len(cards) == 0:
+        return PokerStages.PREFLOP
+    elif len(cards) <= 3:
+        return PokerStages.FLOP
+    elif len(cards) == 4:
+        return PokerStages.TURN
+    else:
+        return PokerStages.RIVER

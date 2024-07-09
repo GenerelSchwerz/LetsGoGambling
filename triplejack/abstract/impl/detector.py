@@ -37,29 +37,25 @@ class PokerImgDetect:
 
 
     @staticmethod
-    def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
-        # check if fullimg is color or grayscale
-        if len(wanted.shape) == 2:
-            w, h = wanted.shape[::]
-        elif len(wanted.shape) == 3:
-            w, h = wanted.shape[:-1]
-        else:
-            raise ValueError("Invalid image shape")
-
-        # cv2.imshow("img", fullimg)
-        # cv2.imshow("img1", wanted)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        res = cv2.matchTemplate(fullimg, wanted, cv2.TM_CCOEFF_NORMED)
+    def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
+        w = wanted.shape[0]
+        h = wanted.shape[1]
  
-        loc = np.where(res >= threshold)
+        # automatically handle transparency 
+        if len(wanted.shape) == 3 and wanted.shape[2] == 4:
+            # assuming wanted is currently in BGRA format, convert back to BGR (color)
+            base = wanted[:,:,0:3]
+            alpha = wanted[:,:,3]
+            mask = cv2.merge([alpha, alpha, alpha])
+            res = cv2.matchTemplate(fullimg, base, cv2.TM_CCOEFF_NORMED, mask=mask)
+        else:
+            res = cv2.matchTemplate(fullimg, wanted, cv2.TM_CCOEFF_NORMED)
 
-        if len(loc[0]) == 0:
+        loc = np.where((res >= threshold) &  np.isfinite(res))
+        
+        if len(loc) == 0:
             return []
         
-        # print(res[loc], np.max(res[loc]))
-
         zipped = np.array(
             [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
         )
@@ -239,6 +235,12 @@ class PokerImgDetect:
             contrasted_img = ImageEnhance.Contrast(img).enhance(contrast)
             image = np.array(contrasted_img)
 
+
+        center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
+        distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
+        if np.sum(distances <= 20) / (image.shape[0] * image.shape[1]) > 0.93:
+            print('Image is mostly the same color as the center pixel, returning empty string')
+            return ''
 
         # TODO this is occasionally failing. I don't know why
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
