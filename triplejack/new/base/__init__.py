@@ -23,10 +23,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 community_diamonds=("diamond1.png", True),
                 community_clubs=("club.png", True),
                 community_spades=("spade.png", True),
-                hole_hearts=("hole_heart1.png", True),
+                hole_hearts=("hole_heart.png", True),
                 hole_diamonds=("hole_diamond2.png", True),
                 hole_clubs=("hole_club2.png", True),
-                hole_spades=("hole_spade1.png", True),
+                hole_spades=("hole_spade2.png", True),
                 check_button=("checkbutton.png", False),
                 call_button=("callbutton.png", False),
                 bet_button=("betbutton.png", False),
@@ -47,7 +47,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.MAIN_POT_BYTES = self.load_image("mainpot.png")
         self.SIDE_POT_BYTES = self.load_image("sidepot.png")
 
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_community_suits(ss2, threshold)
@@ -62,9 +62,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return super().stack_size()
 
     def middle_pot(self, img: MatLike) -> int:
-        """
-        TODO handle multiple pots
-        """
 
         def ident_near(img, loc: tuple[int, int, int, int]):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
@@ -105,8 +102,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def total_pot(self, img: MatLike) -> int:
         return super().total_pot()
 
-
-
     def current_bet(self, img: MatLike) -> int:
         return super().current_bet()
 
@@ -136,20 +131,28 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
                 subsection = (
                     loc[0] - w // 6,
-                    loc[1] - h - h // 6,
+                    loc[1] - h - h // 12,
                     loc[2] + w // 6,
                     loc[3] - h,
-                )
+                ) 
 
                 text = self.ocr_text_from_image(img, subsection, psm=10)
-                print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
-
+      
                 loc = (
                     loc[0] - w // 6,
-                    loc[1] - h - h // 6,
+                    loc[1] - h - h // 12,
                     loc[2] + w // 6,
-                    loc[3] + h // 6,
+                    loc[3],
                 )
+
+                full_card_str = f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"
+
+                img1 = cv2.rectangle(img.copy(), (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+                cv2.putText(img1, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                # cv2.imshow("img", img1)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
 
                 if text == "":
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
@@ -157,8 +160,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     raise ValueError("OCR failed to find card's text")
 
                 try:
-                    ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
+                    ret.append((Card.new(full_card_str), loc))
                 except KeyError as e:
+                    cv2.putText(img, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
                     cv2.imwrite("error.png", img)
                     raise e
@@ -210,7 +214,7 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/test1.png", cv2.IMREAD_COLOR)
+    img = cv2.imread("triplejack/new/base/tests/APair.png", cv2.IMREAD_COLOR)
     # i'm just gonna go pass out i think please call me later if ur still up
     # i'm probably going to call it an early night
     # if you need me for anything let me know

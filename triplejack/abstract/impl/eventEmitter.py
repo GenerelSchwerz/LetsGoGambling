@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
-from eventemitter import EventEmitter
+from event_emitter import EventEmitter
 
 from ..pokerDetection import PokerDetection
 
@@ -23,9 +23,22 @@ from treys import Card
 """
 
 class PokerEvents:
-    NEW_HAND = "NewHand"
-    NEW_STAGE = "NewStage"
-    TEST = "Test"
+    TEST = -1
+    NEW_HAND = 0
+    NEW_STAGE = 1
+
+    INFO = 2
+  
+
+    pretty_str = {
+        NEW_HAND: "New Hand",
+        NEW_STAGE: "New Stage",
+        TEST: "Test",
+        INFO: "Info"
+    }
+
+    def to_str(event: str) -> str:
+        return PokerEvents.pretty_str[event]
 
 
 class PokerStages:
@@ -60,7 +73,7 @@ class PokerEventHandler(EventEmitter):
         super().__init__()
         self.detector = detector
         
-        self.last_stage = PokerStages.UNKNOWN
+        self.last_stage = PokerStages.PREFLOP
         self.last_hand: list[Card] = []
 
     
@@ -75,7 +88,10 @@ class PokerEventHandler(EventEmitter):
             current_stage = PokerStages.FLOP
 
         elif len(community_cards) == 4:
-            current_stage = PokerStages.TURN
+            if self.last_stage == PokerStages.RIVER:
+                current_stage = PokerStages.PREFLOP # new hand
+            else:
+                current_stage = PokerStages.TURN
 
         elif len(community_cards) == 5:
             current_stage = PokerStages.RIVER
@@ -83,31 +99,30 @@ class PokerEventHandler(EventEmitter):
         else:
             raise ValueError(f"Invalid number of community cards, found {len(community_cards)}")
 
-   
-        print(PokerStages.to_str(current_stage), PokerStages.to_str(self.last_stage))
-        
-        current_hand = self.detector.hole_cards(*args)
-
-        print(current_hand, self.last_hand)
-        print(community_cards)
-
+        current_hand = None
+    
         if current_stage != self.last_stage:
             current_hand = self.detector.hole_cards(*args)
+        
+            self.emit(PokerEvents.NEW_STAGE, self.last_stage, current_stage)
 
-            if current_hand != self.last_hand and current_stage == PokerStages.PREFLOP:
-                self.emit(PokerEvents.NEW_HAND, (current_hand))
+            if (current_hand != self.last_hand or len(current_hand)== 0) and current_stage == PokerStages.PREFLOP:
+                self.emit(PokerEvents.NEW_HAND, current_hand)
                 self.last_hand = current_hand
 
         elif current_stage == PokerStages.PREFLOP:
             current_hand = self.detector.hole_cards(*args)
 
             if current_hand != self.last_hand:
-                self.emit(PokerEvents.NEW_HAND, (current_hand))
+                self.emit(PokerEvents.NEW_HAND, current_hand)
                 self.last_hand = current_hand
             
         self.last_stage = current_stage
 
-        self.emit(PokerEvents.TEST, (current_stage, community_cards))
+        if current_hand is None:
+            current_hand = self.last_hand
+        
+        self.emit(PokerEvents.INFO, current_stage, current_hand, community_cards)
 
 
 

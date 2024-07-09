@@ -138,6 +138,11 @@ class PokerImgDetect:
         }
         
     def find_hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
+
+        # cv2.imshow("img", screenshot)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         hearts = self.template_detect(screenshot, self.HOLE_HEART_SUIT_BYTES, threshold=threshold)
         diamonds = self.template_detect(screenshot, self.HOLE_DIAMONDS_SUIT_BYTES, threshold=threshold)
         clubs = self.template_detect(screenshot, self.HOLE_CLUBS_SUIT_BYTES, threshold=threshold)
@@ -235,6 +240,7 @@ class PokerImgDetect:
             image = np.array(contrasted_img)
 
 
+        # TODO this is occasionally failing. I don't know why
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
 
