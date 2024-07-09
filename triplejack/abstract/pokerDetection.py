@@ -47,7 +47,15 @@ class PokerDetection(ABC):
         pass
 
     @abstractmethod
+    def community_cards_and_locs(self) -> list[tuple[Card, tuple[int, int]]]:
+        pass
+
+    @abstractmethod
     def hole_cards(self) -> list[Card]:
+        pass
+
+    @abstractmethod
+    def hole_cards_and_locs(self) -> list[tuple[Card, tuple[int, int]]]:
         pass
     
     @abstractmethod

@@ -114,7 +114,7 @@ class NewPokerBot:
         el = self.driver.find_element(By.CSS_SELECTOR, "#entry-panel > form > button")
         el.click()
 
-        self.driver.save_screenshot("test.png")
+        self.detector.load_images()
 
     # ====================
     # Utilities
