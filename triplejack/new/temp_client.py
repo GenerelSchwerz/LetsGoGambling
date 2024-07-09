@@ -29,13 +29,6 @@ import random
 # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
-def detect_holecard_locations(screenshot, expected_amt=2) -> list[tuple[int, int]]:
-    pass
-
-
-def detect_communitycard_locations(screenshot, expected_amt=5) -> list[tuple[int, int]]:
-    pass
-
 
 log = Logger("PokerBot")
 

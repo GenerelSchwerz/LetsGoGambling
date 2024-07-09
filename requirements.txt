@@ -6,3 +6,6 @@ matplotlib
 treys
 poker
 selenium    
+pyEventEmitter
+treys
+poker
