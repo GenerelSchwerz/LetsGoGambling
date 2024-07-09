@@ -25,6 +25,7 @@ from treys import Card
 class PokerEvents:
     NEW_HAND = "NewHand"
     NEW_STAGE = "NewStage"
+    TEST = "Test"
 
 
 class PokerStages:
@@ -105,6 +106,8 @@ class PokerEventHandler(EventEmitter):
                 self.last_hand = current_hand
             
         self.last_stage = current_stage
+
+        self.emit(PokerEvents.TEST, (current_stage, community_cards))
 
 
 

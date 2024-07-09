@@ -46,15 +46,25 @@ class PokerImgDetect:
         else:
             raise ValueError("Invalid image shape")
 
+        # cv2.imshow("img", fullimg)
+        # cv2.imshow("img1", wanted)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         res = cv2.matchTemplate(fullimg, wanted, cv2.TM_CCOEFF_NORMED)
  
         loc = np.where(res >= threshold)
+
+        if len(loc[0]) == 0:
+            return []
+        
+        # print(res[loc], np.max(res[loc]))
 
         zipped = np.array(
             [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
         )
 
-        return non_max_suppression_slow(zipped, 0.3) 
+        return non_max_suppression_slow(zipped, 0.01) 
 
     @staticmethod
     def ident_one_template(img: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.9) -> Union[tuple[int, int, int, int], None]:
@@ -93,8 +103,27 @@ class PokerImgDetect:
         self.ALLIN_BUTTON_BYTES = self.load_image(self.opts.allin_button[0], binary=self.opts.allin_button[1])
 
 
-    def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
+    def sit_buttons(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
         return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold=threshold)
+    
+    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold=threshold)
+    
+    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold=threshold)
+    
+    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold=threshold)
+    
+    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold=threshold)
+    
+    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold=threshold)
+    
+    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold=threshold)
+
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         hearts = self.template_detect(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold)
@@ -188,9 +217,9 @@ class PokerImgDetect:
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
-        cv2.imshow("img", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         if rotation_angle != 0:
             image = Image.fromarray(image)
@@ -234,7 +263,7 @@ class PokerImgDetect:
         result = pytesseract.image_to_string(binary, lang='eng', config=CUSTOM_CONFIG.format(psm=psm)).strip()
    
         # can you tell what number has given me hours of trouble with tesseract and TJ font
-        if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O"]):
+        if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", ]):
             return '10'
         return result
 

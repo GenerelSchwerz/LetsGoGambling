@@ -250,7 +250,7 @@ class NewPokerBot:
 
         ss = self.canvas_screenshot(store=False)
         ss_good = prepare_ss(ss)
-        locations = self.detector.sit_button(ss_good)
+        locations = self.detector.sit_buttons(ss_good)
 
         # pick top left location
 
@@ -291,7 +291,7 @@ def show_all_info(bot: NewPokerBot):
     ss = bot.canvas_screenshot(store=False, save_loc="test.png")
     ss_good = prepare_ss(ss)
 
-    sit_button = bot.detector.sit_button(ss_good)
+    sit_button = bot.detector.sit_buttons(ss_good)
 
     for loc in sit_button:
         cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
@@ -411,12 +411,13 @@ def main():
             time.sleep(0.25)
 
 
-        bot.event_handler.on(PokerEvents.NEW_HAND, lambda x: print(x))
+        bot.event_handler.on(PokerEvents.NEW_HAND, lambda x: print("HI!", x))
+        bot.event_handler.on(PokerEvents.TEST, lambda x: print("TEST", x))
         
         while True:
             img = bot.canvas_screenshot(store=False)
-            show_all_info(bot)
-            # bot.event_handler.tick(prepare_ss(img))
+            # show_all_info(bot)
+            bot.event_handler.tick(prepare_ss(img))
 
             time.sleep(2)
 

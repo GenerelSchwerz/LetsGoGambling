@@ -23,7 +23,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 community_diamonds=("diamond1.png", True),
                 community_clubs=("club.png", True),
                 community_spades=("spade.png", True),
-                hole_hearts=("hole_heart.png", True),
+                hole_hearts=("hole_heart1.png", True),
                 hole_diamonds=("hole_diamond2.png", True),
                 hole_clubs=("hole_club2.png", True),
                 hole_spades=("hole_spade1.png", True),
@@ -141,14 +141,14 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     loc[3] - h,
                 )
 
-                text = self.ocr_text_from_image(img, subsection, psm=7)
+                text = self.ocr_text_from_image(img, subsection, psm=10)
                 print(f"found: {card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}")
 
                 loc = (
                     loc[0] - w // 6,
                     loc[1] - h - h // 6,
                     loc[2] + w // 6,
-                    loc[3],
+                    loc[3] + h // 6,
                 )
 
                 if text == "":
@@ -156,7 +156,13 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     cv2.imwrite("error.png", img)
                     raise ValueError("OCR failed to find card's text")
 
-                ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
+                try:
+                    ret.append((Card.new(f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"), loc))
+                except KeyError as e:
+                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
+                    cv2.imwrite("error.png", img)
+                    raise e
+
 
         # sort ret by x position (want left to right)
         ret.sort(key=lambda x: x[1][0])
@@ -192,29 +198,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def hole_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
     
-    def sit_button(self, img: MatLike) -> list[tuple[int, int, int, int]]:
-        return self.find_sit_button(img)
-    
 
-    
-    def call_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.CALL_BUTTON_BYTES)
 
-    def raise_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.RAISE_BUTTON_BYTES)
-    
-    def check_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.CHECK_BUTTON_BYTES)
-    
-    def bet_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.BET_BUTTON_BYTES)
-    
-    def fold_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.FOLD_BUTTON_BYTES)
-    
-    def allin_button(self, img: MatLike) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(img, self.ALLIN_BUTTON_BYTES)
-    
 
 
        
@@ -225,19 +210,18 @@ if __name__ == "__main__":
     detect = TJPokerDetect()
     detect.load_images()
 
-    img = cv2.imread("triplejack/new/base/tests/sitting_real.png", cv2.IMREAD_COLOR)
-    # why no call
-    # well uh
-    # anyway why no call
-    # tell them to kill themselves and die
-    # grrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
-    # i might call it here in a sec my head is killing me im so tired
-    # and i did my purpose anyway which was to add brightness contrast
-    # which i swear to god really helped a lot in my tests, it gets rid of the
-    # diamond poking out now.
-    # for cards?
-    # yes
-    
+    img = cv2.imread("triplejack/new/base/tests/test1.png", cv2.IMREAD_COLOR)
+    # i'm just gonna go pass out i think please call me later if ur still up
+    # i'm probably going to call it an early night
+    # if you need me for anything let me know
+    # and if you have any tasks you want to relegate to me that are either really quick and simple for tonight or other tasks for tmrw, lmk
+    # love you <3
+    # oh btw if you end up super night owling it and get to the point where u wanna test a decisionmaker,
+    # check the latest commit in my repository, the method signature looks like 
+    # make_decision([holecard1, holecard2], board_cards, stack_size, pot_value, current_bet,
+                                        #  min_bet, num_opponents, self.big_blind, middle_pot_value, self.flags)
+# and you can make an abstract class or some shit idk and replace the "returns" inside PokerDecisionMaker with returning an enum decision thing or something anyway bye love you
+
     info = detect.community_cards_and_locs(img)
 
     for card, loc in info:
@@ -253,7 +237,7 @@ if __name__ == "__main__":
         cv2.putText(img, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    sit_locs = detect.find_sit_button(img)
+    sit_locs = detect.sit_buttons(img)
     print(sit_locs)
 
     for loc in sit_locs:
@@ -263,6 +247,7 @@ if __name__ == "__main__":
     call_loc = detect.call_button(img)
     if call_loc is not None:
         print("call button found")
+        print(call_loc)
         cv2.rectangle(img, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
     else:
         print("no call button found")
