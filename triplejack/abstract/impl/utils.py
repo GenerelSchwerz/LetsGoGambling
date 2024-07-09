@@ -11,24 +11,24 @@ class PokerImgOpts:
     # (image_path, binary)
     folder_path: str
 
-    sit_button: (str, bool)
+    sit_button: tuple[str, bool]
 
-    community_hearts: (str, bool)
-    community_diamonds: (str, bool)
-    community_clubs: (str, bool)
-    community_spades: (str, bool)
+    community_hearts: tuple[str, bool]
+    community_diamonds: tuple[str, bool]
+    community_clubs: tuple[str, bool]
+    community_spades: tuple[str, bool]
 
-    hole_hearts: (str, bool)
-    hole_diamonds: (str, bool)
-    hole_clubs: (str, bool)
-    hole_spades: (str, bool)
+    hole_hearts: tuple[str, bool]
+    hole_diamonds: tuple[str, bool]
+    hole_clubs: tuple[str, bool]
+    hole_spades: tuple[str, bool]
 
-    check_button: (str, bool)
-    call_button: (str, bool)
-    bet_button: (str, bool)
-    fold_button: (str, bool)
-    raise_button: (str, bool)
-    allin_button: (str, bool)
+    check_button: tuple[str, bool]
+    call_button: tuple[str, bool]
+    bet_button: tuple[str, bool]
+    fold_button: tuple[str, bool]
+    raise_button: tuple[str, bool]
+    allin_button: tuple[str, bool]
 
 
 #  stolen code

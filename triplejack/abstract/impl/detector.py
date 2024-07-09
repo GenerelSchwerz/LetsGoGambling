@@ -37,11 +37,11 @@ class PokerImgDetect:
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77):
-        print(fullimg.shape)
+        print(wanted.shape)
         # check if fullimg is color or grayscale
-        if len(fullimg.shape) == 2:
+        if len(wanted.shape) == 2:
             w, h = wanted.shape[::]
-        elif len(fullimg.shape) == 3:
+        elif len(wanted.shape) == 3:
             w, h = wanted.shape[:-1]
         else:
             raise ValueError("Invalid image shape")
@@ -78,6 +78,13 @@ class PokerImgDetect:
         self.HOLE_DIAMONDS_SUIT_BYTES = self.load_image(self.opts.hole_diamonds[0], binary=self.opts.hole_diamonds[1])
         self.HOLE_CLUBS_SUIT_BYTES = self.load_image(self.opts.hole_clubs[0], binary=self.opts.hole_clubs[1])
         self.HOLE_SPADES_SUIT_BYTES = self.load_image(self.opts.hole_spades[0], binary=self.opts.hole_spades[1])
+
+        self.CHECK_BUTTON_BYTES = self.load_image(self.opts.check_button[0], binary=self.opts.check_button[1])
+        self.CALL_BUTTON_BYTES = self.load_image(self.opts.call_button[0], binary=self.opts.call_button[1])
+        self.BET_BUTTON_BYTES = self.load_image(self.opts.bet_button[0], binary=self.opts.bet_button[1])
+        self.FOLD_BUTTON_BYTES = self.load_image(self.opts.fold_button[0], binary=self.opts.fold_button[1])
+        self.RAISE_BUTTON_BYTES = self.load_image(self.opts.raise_button[0], binary=self.opts.raise_button[1])
+        self.ALLIN_BUTTON_BYTES = self.load_image(self.opts.allin_button[0], binary=self.opts.allin_button[1])
 
 
     def find_sit_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
