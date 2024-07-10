@@ -158,11 +158,15 @@ class NewPokerBot:
     def click_on_canvas(self, x: int, y: int):
 
         # TODO: not accurate when not on full screen. Don't know why.
-        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
 
-        ActionChains(self.driver).move_to_element_with_offset(
-            canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
-        ).move_by_offset(x, y).click().perform()
+        body = self.driver.find_element(By.TAG_NAME, "body")
+        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
+        bW, bH = body.size["width"], body.size["height"]
+        cX, cY = canvas.location["x"], canvas.location["y"]
+        
+        ActionChains(self.driver).move_to_element_with_offset(body,-bW // 2 + x + cX, -bH // 2 + y + cY).click().perform()
+
+
 
     # ====================
     # Game Logic
@@ -283,14 +287,21 @@ class NewPokerBot:
         # locations = [locations[0]]
 
         # for loc in locations:
-        #     cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+        #     cv2.rectangle(ss_good, (loc[0], loc[1]), (loc[2], loc[3]), (0, 200, 0), 2)
 
         if len(locations) == 0:
             log.error("Could not find sit button")
             return
+        
+   
 
         averages = [((pt[0] + pt[2]) // 2, ((pt[1] + pt[3]) // 2)) for pt in locations]
         selection = averages[random.randint(0, len(averages) - 1)]
+
+        # cv2.rectangle(ss_good, (selection[0], selection[1]), (selection[0] + 10, selection[1] + 10), (0, 255, 0), 2)
+        # cv2.imshow("Sit Buttons", ss_good)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         self.click_on_canvas(int(selection[0]), int(selection[1]))
 
@@ -466,7 +477,7 @@ def main():
         while True:
 
             # input("take screenie ")
-            img = bot.canvas_screenshot(store=False,  save_loc=f"triplejack/new/base/tests/midrun/test-{int(time.time())}.png") #
+            img = bot.canvas_screenshot(store=False) #
             img = prepare_ss(img)
             # report_info(bot.detector img)
             bot.event_handler.tick(img)
@@ -476,6 +487,8 @@ def main():
             print("Sleeping for ", dur, "been", now - last_time, "seconds since last tick.")
             time.sleep(dur)
             last_time = time.time()
+
+        time.sleep(600)
 
 
 
