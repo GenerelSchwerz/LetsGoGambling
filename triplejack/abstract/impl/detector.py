@@ -113,30 +113,24 @@ class PokerImgDetect:
 
     def sit_buttons(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
         return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold)
-    
-    # only check bottom 4th of the screen for these buttons
-
-    def __get_button_subsection(self, screenshot: cv2.typing.MatLike) -> tuple[int, int, int, int]:
-        h = screenshot.shape[0]
-        return (0, h - h // 5, screenshot.shape[1], h)
 
     def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold)
     
     def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold)
     
     def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold)
     
     def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold)
     
     def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold)
     
     def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold)
 
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:

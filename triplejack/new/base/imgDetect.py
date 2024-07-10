@@ -102,6 +102,30 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 return pretty_str_to_int(text)
             except ValueError:
                 return 0
+            
+    # due to triplejack having them all at the bottom, moved this out of generic impl for speedup.
+    def __get_button_subsection(self, screenshot: cv2.typing.MatLike) -> tuple[int, int, int, int]:
+        h = screenshot.shape[0]
+        return (0, h - h // 5, screenshot.shape[1], h)
+
+    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
@@ -131,17 +155,21 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
             return pretty_str_to_int(text)
 
-        single_pot = self.ident_one_template(img, self.POT_BYTES)
+        h = img.shape[0]
+        w = img.shape[1]
+        subsection = (w // 3, h // 4, w // 3 * 2, h // 4 * 3)
+    
+        single_pot = self.ident_one_template(img, self.POT_BYTES, subsection=subsection)
 
         if single_pot is None:
 
-            main_pot = self.ident_one_template(img, self.MAIN_POT_BYTES)
+            main_pot = self.ident_one_template(img, self.MAIN_POT_BYTES, subsection=subsection)
 
             # no pots currently visible
             if main_pot is None:
                 return 0
             
-            side_pots = self.template_detect(img, self.SIDE_POT_BYTES)
+            side_pots = self.template_detect(img, self.SIDE_POT_BYTES, subsection=subsection)
             if len(side_pots) == 0:
                 return ident_near_pot(img, main_pot)
 
@@ -159,7 +187,13 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return self.middle_pot(img) + sum(self.current_bets(img))
 
     def current_bets(self, img: MatLike) -> list[int]:
-        return [self.__ident_near_popup(img, locs) for locs in self.template_detect(img, self.BASE_POPUP_BYTES, threshold=0.95)]
+        ret = []
+
+        for popup in self.POPUP_BYTES:
+            for loc in self.template_detect(img, popup, threshold=0.95):
+                ret.append(self.__ident_near_popup(img, loc))
+        
+        return ret
         
     def current_bet(self, img: MatLike) -> int:
         return max(self.current_bets(img))
@@ -373,21 +407,19 @@ def report_info(detector: TJPokerDetect, ss: str | cv2.typing.MatLike):
 
     mid_pot = 0
     tot_pot = 0
-    current_bet = 0
+    current_bets = 0
     mid_pot = detector.middle_pot(img)
-    print(mid_pot)
+    current_bets = detector.current_bets(img)
+    
+    tot_pot = mid_pot + sum(current_bets)
+    current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
-    tot_pot = detector.total_pot(img)
-    print(tot_pot)
-
-    current_bet = detector.current_bets(img)
-    print(current_bet)
 
     filename = ss if isinstance(ss, str) else "current image"
 
     
 
-    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bet: {current_bet} | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
+    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

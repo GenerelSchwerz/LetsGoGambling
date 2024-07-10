@@ -433,9 +433,16 @@ def main():
         def on_new_hand(*args):
             print("New Hand", *args)
 
+        def on_our_turn(*args):
+            print("Our Turn", *args)
+
+
+
         bot.event_handler.on(PokerEvents.NEW_HAND, on_new_hand)
         bot.event_handler.on(PokerEvents.NEW_STAGE, on_new_stage)
-        bot.event_handler.on(PokerEvents.INFO, on_info)
+        bot.event_handler.on(PokerEvents.OUR_TURN, on_our_turn)
+
+        bot.event_handler.on(PokerEvents.TICK, on_info)
 
         # main loop.
 
