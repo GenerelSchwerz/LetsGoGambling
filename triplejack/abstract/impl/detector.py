@@ -57,7 +57,7 @@ class PokerImgDetect:
 
         loc = np.where((res >= threshold) &  np.isfinite(res))
         
-        if len(loc) == 0:
+        if len(loc[0]) == 0:
             return []
         
 
