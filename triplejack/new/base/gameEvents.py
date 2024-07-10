@@ -52,7 +52,9 @@ class TJEventEmitter(PokerEventHandler):
 
         if big_blind == -1:
             # let's try to find a post
-            big_blind = self.detector.popup(img, TJPopupTypes.POST)
+            post_loc = self.detector.popup(img, TJPopupTypes.POST)
+            if post_loc is not None:
+                big_blind = self.detector.ident_near_popup(img, post_loc)
 
 
         if small_blind == -1:
@@ -131,8 +133,6 @@ class TJEventEmitter(PokerEventHandler):
         current_hand = None
     
         if current_stage != self.last_stage:
-            
-        
             self.emit(PokerEvents.NEW_STAGE, self.last_stage, current_stage)
 
             if current_stage == PokerStages.PREFLOP:

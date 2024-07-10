@@ -155,7 +155,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             TJPopupTypes.SMALL: self.SMALL_POPUP_BYTES
         }
 
-    def __ident_near_popup(self, img, loc: tuple[int, int, int, int]):
+    def ident_near_popup(self, img, loc: tuple[int, int, int, int]):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
             subsection = (
                 loc[0] - w // 2,
@@ -200,7 +200,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
     def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> tuple[int, int, int, int]:
         return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
-
+    
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -210,8 +210,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_hole_suits(ss2, threshold)
-
-
+    
     def stack_size(self, img: MatLike) -> int:
         return super().stack_size()
 
@@ -265,7 +264,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         for popup in self.POPUP_BYTES:
             for loc in self.template_detect(img, popup, threshold=0.95):
-                ret.append(self.__ident_near_popup(img, loc))
+                ret.append(self.ident_near_popup(img, loc))
         
         return ret
         
@@ -286,14 +285,14 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         if big_blind_popup is None:
             return -1
         
-        return self.__ident_near_popup(img, big_blind_popup)
+        return self.ident_near_popup(img, big_blind_popup)
     
     def small_blind(self, img: MatLike) -> int:
         small_blind_popup = self.ident_one_template(img, self.SMALL_POPUP_BYTES)
         if small_blind_popup is None:
             return -1
         
-        return self.__ident_near_popup(img, small_blind_popup)
+        return self.ident_near_popup(img, small_blind_popup)
         
 
     def get_full_cards(self, img: MatLike, hole=False) -> list[tuple[Card, tuple[int, int, int, int]]]:
