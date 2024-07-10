@@ -316,7 +316,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
 
        
-def report_info(detector: TJPokerDetect, ss: str | cv2.typing.MatLike):
+def report_info(detector: TJPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     if isinstance(ss, str):
         img = cv2.imread(ss, cv2.IMREAD_COLOR)
