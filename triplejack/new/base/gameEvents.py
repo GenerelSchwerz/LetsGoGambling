@@ -57,10 +57,15 @@ class TJEventEmitter(PokerEventHandler):
 
 
     def __emit_our_turn(self, img: cv2.typing.MatLike):
-        current_bets = self.detector.current_bets(img)
         mid_pot = self.detector.middle_pot(img)
-        total_pot = sum(current_bets) + mid_pot
-        facing_bet = max(current_bets)
+        current_bets = self.detector.current_bets(img)
+
+        if len(current_bets) == 0:
+            total_pot = mid_pot
+            facing_bet = 0
+        else:        
+            total_pot = sum(current_bets) + mid_pot
+            facing_bet = max(current_bets)
 
         self.emit(PokerEvents.OUR_TURN, self.last_hand, facing_bet, mid_pot, total_pot)
         # self.our_turn = True # slightly redundant code as this should only ever be called if this is supposed to be true.
@@ -161,7 +166,7 @@ class TJEventEmitter(PokerEventHandler):
         self.our_turn = our_turn
         
         
-        self.emit(PokerEvents.INFO, current_stage, current_hand, community_cards)
+        self.emit(PokerEvents.TICK, current_stage, current_hand, community_cards)
 
 
 

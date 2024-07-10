@@ -43,7 +43,7 @@ class NewPokerBot:
     """
 
     def __init__(
-        self, debug=False, skip_cards=False, continuous=False, big_blind=200, **kwargs
+        self, headless=False, debug=False, skip_cards=False, continuous=False, big_blind=200, **kwargs
     ):
         self.debug = debug
         self.skip_cards = skip_cards
@@ -61,9 +61,11 @@ class NewPokerBot:
         self.detector = TJPokerDetect()
         self.event_handler = TJEventEmitter(self.detector)
 
+        self.headless = headless
+
 
     # TODO: Specify options for driver upon entry.
-    def __enter__(self, headless=False) -> Self:
+    def __enter__(self) -> Self:
     
         NewPokerBot.currently_running += 1
         log.debug(f"Entering PokerBot {NewPokerBot.currently_running}")
@@ -79,14 +81,27 @@ class NewPokerBot:
         options.add_argument('--enable-unsafe-webgpu')
 
         # set window size to standard 1080p
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--start-maximized")
+        # 
+        
+        options.add_experimental_option("useAutomationExtension", False)
+        options.add_experimental_option("excludeSwitches",["enable-automation"])
+        options.add_argument('--disable-infobars')
 
-        if headless:
+        if self.headless:
             options.add_argument('--headless=new')
+            options.add_argument("--window-size=1920,1080")
+            self.driver = webdriver.Chrome(options=options)
+            # self.driver.maximize_window() # why is this setting to 4k lol, no need
+        else:
+            options.add_argument("--window-size=1920,1080")
+            options.add_argument("--start-maximized")
+            self.driver = webdriver.Chrome(options=options)
+            self.driver.maximize_window()
 
-        self.driver = webdriver.Chrome(options=options)
-        self.driver.maximize_window()
+            
+
+        
+        
         # self.driver.set_window_size(1920, 1080)
 
         return self
@@ -413,7 +428,7 @@ def show_all_info(bot: NewPokerBot, save=True):
 def main():
     import time
 
-    with NewPokerBot() as bot:
+    with NewPokerBot(headless=False) as bot:
         bot.initialize("Generel", "Rocky1928!")
         bot.halt_until_room_select()
         time.sleep(4) # built-in delay/transition into the website
@@ -433,9 +448,16 @@ def main():
         def on_new_hand(*args):
             print("New Hand", *args)
 
+        def on_our_turn(*args):
+            print("Our Turn", *args)
+
+
+
         bot.event_handler.on(PokerEvents.NEW_HAND, on_new_hand)
         bot.event_handler.on(PokerEvents.NEW_STAGE, on_new_stage)
-        bot.event_handler.on(PokerEvents.INFO, on_info)
+        bot.event_handler.on(PokerEvents.OUR_TURN, on_our_turn)
+
+        bot.event_handler.on(PokerEvents.TICK, on_info)
 
         # main loop.
 
@@ -444,7 +466,7 @@ def main():
         while True:
 
             # input("take screenie ")
-            img = bot.canvas_screenshot(store=False) # save_loc=f"triplejack/new/base/tests/test-{int(time.time())}.png"
+            img = bot.canvas_screenshot(store=False,  save_loc=f"triplejack/new/base/tests/midrun/test-{int(time.time())}.png") #
             img = prepare_ss(img)
             # report_info(bot.detector img)
             bot.event_handler.tick(img)
