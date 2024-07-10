@@ -29,7 +29,7 @@ class PokerEvents:
 
     OUR_TURN = 2
 
-    INFO = 3
+    TICK = 3
   
 
     pretty_str = {
@@ -38,7 +38,7 @@ class PokerEvents:
         NEW_STAGE: "New Stage",
      
         OUR_TURN: "Our Turn",
-        INFO: "Info"
+        TICK: "Info"
     }
 
     def to_str(event: str) -> str:
