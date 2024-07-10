@@ -20,10 +20,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             opts=PokerImgOpts(
                 folder_path="triplejack/new/base/imgs",
                 sit_button=("sit.png", False),
-                community_hearts=("heart.png", True),
+                community_hearts=("heart1.png", True),
                 community_diamonds=("diamond1.png", True),
                 community_clubs=("club1.png", True),
-                community_spades=("spade.png", True),
+                community_spades=("spade1.png", True),
                 hole_hearts=("hole_heart1.png", True),
                 hole_diamonds=("hole_diamond2.png", True),
                 hole_clubs=("hole_club2.png", True),
@@ -284,7 +284,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         h = img.shape[0]
         w = img.shape[1]
-        img = img[h // 4 : h // 4 * 2, w // 4: w // 4 * 3, :]
+        img = img[h // 4 : h // 4 * 3, w // 4: w // 4 * 3, :]
 
         ret = self.get_full_cards(img)
 
@@ -407,7 +407,7 @@ def report_info(detector: TJPokerDetect, ss: str | cv2.typing.MatLike):
 
     mid_pot = 0
     tot_pot = 0
-    current_bets = 0
+    current_bets = []
     mid_pot = detector.middle_pot(img)
     current_bets = detector.current_bets(img)
     
@@ -431,17 +431,19 @@ if __name__ == "__main__":
     import os
     import time
 
+    folder = "triplejack/new/base/tests/midrun"
     # for all files in a directory, run the report_info function
-    files = os.listdir("triplejack/new/base/tests")
-    # files = [
-    #     "test-1720544837.png"
-    # ]
+    files = os.listdir(folder)
+    files = [
+        # "heck.png"
+        "/home/generel/Documents/code/python/poker/LetsGoGambling/triplejack/new/base/tests/midrun/test-1720622523.png"
+    ]
     files = sorted(files)
-    # files.reverse()
-    print(files)
+    files.reverse()
+    print(folder, files)
     for filename in files:
         if filename.endswith(".png"):
-            path =  os.path.join("triplejack/new/base/tests", filename)
+            path =  os.path.join(filename)
             print("running report_info on",path)
 
            
