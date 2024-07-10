@@ -110,10 +110,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.SMALL_POPUP_BYTES = None
 
         self.POPUP_BYTES = []
-        self.__POPUP_DICT = {
+        self.__POPUP_DICT = {}
     
 
-        }
+        self.seat_loc = None
 
     def load_images(self):
         super().load_images()
@@ -211,9 +211,30 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_hole_suits(ss2, threshold)
-    
+
+    def set_seat_loc(self, loc: tuple[int, int]):
+        self.seat_loc = (loc[0], int(loc[1] * 0.81))
+
     def stack_size(self, img: MatLike) -> int:
-        return super().stack_size()
+        if self.seat_loc is None:
+            raise ValueError("seat_loc not set")
+        left = self.seat_loc[0] + 56
+        top = self.seat_loc[1] + 63
+        right = left + 77
+        bottom = top + 27
+        number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
+        # TODO: make a util method if needed by other functions like reading call button
+        has_period = '.' in number or ',' in number
+        new_number = number.replace(',', '')
+        new_number = new_number.replace('.', '')
+        # replace 'k' with '000'
+        new_number = new_number.replace('k', '00' if has_period else '000')
+        new_number = new_number.replace('K', '00' if has_period else '000')
+        try:
+            return int(new_number)
+        except ValueError:
+            print(f'Could not convert number to int: {number} ({new_number})')
+            return 0
 
     def middle_pot(self, img: MatLike) -> int:
 
