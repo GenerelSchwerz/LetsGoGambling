@@ -1,4 +1,4 @@
-from typing import Self, Union
+from typing import Union
 
 
 import cv2
@@ -65,7 +65,7 @@ class NewPokerBot:
 
 
     # TODO: Specify options for driver upon entry.
-    def __enter__(self) -> Self:
+    def __enter__(self):
     
         NewPokerBot.currently_running += 1
         log.debug(f"Entering PokerBot {NewPokerBot.currently_running}")
