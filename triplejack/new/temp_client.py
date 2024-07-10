@@ -80,6 +80,8 @@ class NewPokerBot:
         options.add_argument('--disable-vulkan-surface')
         options.add_argument('--enable-unsafe-webgpu')
 
+        options.add_argument('--mute-audio')
+
         # set window size to standard 1080p
         # 
         
@@ -96,13 +98,8 @@ class NewPokerBot:
             options.add_argument("--window-size=1920,1080")
             options.add_argument("--start-maximized")
             self.driver = webdriver.Chrome(options=options)
-            self.driver.maximize_window()
-
-            
-
         
-        
-        # self.driver.set_window_size(1920, 1080)
+        self.driver.set_window_size(1920, 1080)
 
         return self
 
@@ -156,9 +153,6 @@ class NewPokerBot:
         return var
 
     def click_on_canvas(self, x: int, y: int):
-
-        # TODO: not accurate when not on full screen. Don't know why.
-
         body = self.driver.find_element(By.TAG_NAME, "body")
         canvas = self.driver.find_element(By.TAG_NAME, "canvas")
         bW, bH = body.size["width"], body.size["height"]
@@ -166,6 +160,17 @@ class NewPokerBot:
         
         ActionChains(self.driver).move_to_element_with_offset(body,-bW // 2 + x + cX, -bH // 2 + y + cY).click().perform()
 
+    def drag_on_canvas(self, x1: int, y1: int, x2: int, y2: int):
+        body = self.driver.find_element(By.TAG_NAME, "body")
+        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
+        bW, bH = body.size["width"], body.size["height"]
+        cX, cY = canvas.location["x"], canvas.location["y"]
+
+        ActionChains(self.driver) \
+            .move_to_element_with_offset(body, -bW // 2 + x1 + cX, -bH // 2 + y1 + cY) \
+            .click_and_hold() \
+            .move_by_offset(x2 - x1, y2 - y1) \
+            .release().perform()
 
 
     # ====================
@@ -477,7 +482,7 @@ def main():
         while True:
 
             # input("take screenie ")
-            img = bot.canvas_screenshot(store=False) #
+            img = bot.canvas_screenshot(store=False, save_loc="test.png") #
             img = prepare_ss(img)
             # report_info(bot.detector img)
             bot.event_handler.tick(img)

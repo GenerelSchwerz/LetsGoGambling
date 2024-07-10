@@ -13,6 +13,62 @@ from treys import Card
 from .utils import *
 
 
+class TJPopupTypes:
+    BASE = 0
+    CHECK = 1
+    CALL = 2
+    BET = 3
+    RAISE = 4
+    ALLIN = 5
+    POST = 6
+    BIG = 7
+    SMALL = 8
+
+    def to_str(self, val: int) -> str:
+        if val == self.BASE:
+            return "BASE"
+        elif val == self.CHECK:
+            return "CHECK"
+        elif val == self.CALL:
+            return "CALL"
+        elif val == self.BET:
+            return "BET"
+        elif val == self.RAISE:
+            return "RAISE"
+        elif val == self.ALLIN:
+            return "ALLIN"
+        elif val == self.POST:
+            return "POST"
+        elif val == self.BIG:
+            return "BIG"
+        elif val == self.SMALL:
+            return "SMALL"
+        else:
+            return "UNKNOWN"
+
+    def from_str(self, val: str) -> int:
+        if val == "BASE":
+            return self.BASE
+        elif val == "CHECK":
+            return self.CHECK
+        elif val == "CALL":
+            return self.CALL
+        elif val == "BET":
+            return self.BET
+        elif val == "RAISE":
+            return self.RAISE
+        elif val == "ALLIN":
+            return self.ALLIN
+        elif val == "POST":
+            return self.POST
+        elif val == "BIG":
+            return self.BIG
+        elif val == "SMALL":
+            return self.SMALL
+        else:
+            return -1
+
+
 class TJPokerDetect(PokerImgDetect, PokerDetection):
 
     def __init__(self) -> None:
@@ -53,6 +109,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.SMALL_POPUP_BYTES = None
 
         self.POPUP_BYTES = []
+        self.__POPUP_DICT = {
+    
+
+        }
 
     def load_images(self):
         super().load_images()
@@ -82,6 +142,18 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             self.BIG_POPUP_BYTES,
             self.SMALL_POPUP_BYTES
         ]
+
+        self.__POPUP_DICT = {
+            TJPopupTypes.BASE: self.BASE_POPUP_BYTES,
+            TJPopupTypes.CHECK: self.CHECK_POPUP_BYTES,
+            TJPopupTypes.CALL: self.CALL_POPUP_BYTES,
+            TJPopupTypes.BET: self.BET_POPUP_BYTES,
+            TJPopupTypes.RAISE: self.RAISE_POPUP_BYTES,
+            TJPopupTypes.ALLIN: self.ALLIN_POPUP_BYTES,
+            TJPopupTypes.POST: self.POST_POPUP_BYTES,
+            TJPopupTypes.BIG: self.BIG_POPUP_BYTES,
+            TJPopupTypes.SMALL: self.SMALL_POPUP_BYTES
+        }
 
     def __ident_near_popup(self, img, loc: tuple[int, int, int, int]):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
@@ -126,6 +198,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
         return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
 
+    def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> tuple[int, int, int, int]:
+        return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from event_emitter import EventEmitter
 
-from .imgDetect import TJPokerDetect
+from .imgDetect import TJPokerDetect, TJPopupTypes
 
 from ...abstract.pokerDetection import PokerDetection
 from ...abstract.pokerEventHandler import PokerStages, PokerEvents, PokerEventHandler
@@ -50,7 +50,18 @@ class TJEventEmitter(PokerEventHandler):
         # eager, this is most likely not necessary.
         big_blind = self.detector.big_blind(img) 
 
-        print(big_blind, small_blind)
+        if big_blind == -1:
+            # let's try to find a post
+            big_blind = self.detector.popup(img, TJPopupTypes.POST)
+
+
+        if small_blind == -1:
+            if big_blind >= 0:
+                # small blind not detected, but big blind is. Assume small blind is half of big blind.
+                small_blind = big_blind // 2
+            else:
+                # have an error (didn't find correct bets), for now just allow it.
+                pass
 
         self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind)
         self.last_hand = hand
@@ -120,12 +131,14 @@ class TJEventEmitter(PokerEventHandler):
         current_hand = None
     
         if current_stage != self.last_stage:
-            current_hand = self.detector.hole_cards(image)
+            
         
             self.emit(PokerEvents.NEW_STAGE, self.last_stage, current_stage)
 
-            if (current_hand != self.last_hand or len(current_hand)== 0) and current_stage == PokerStages.PREFLOP:
-                self.__emit_new_hand(image, current_hand)
+            if current_stage == PokerStages.PREFLOP:
+                current_hand = self.detector.hole_cards(image)
+                if (current_hand != self.last_hand or len(current_hand)== 0):
+                    self.__emit_new_hand(image, current_hand)
              
 
         elif current_stage == PokerStages.PREFLOP:
@@ -134,7 +147,7 @@ class TJEventEmitter(PokerEventHandler):
             if current_hand != self.last_hand and (hand_len := len(current_hand)) == 2:
                 if hand_len < 2:
                     # shouldn't happen.
-                    raise ValueError(f"Invalid number of hole cards, found {hand_len}")
+                    raise ValueError(f"Invalid number of hole cards (too little), found {hand_len}")
                 
                 self.__emit_new_hand(image, current_hand)
             
