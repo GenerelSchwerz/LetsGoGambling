@@ -37,7 +37,11 @@ class PokerImgDetect:
 
 
     @staticmethod
-    def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
+    def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int,int,int,int], None] = None) -> list[tuple[int, int, int, int]]:
+        
+        if subsection is not None:
+            fullimg = fullimg[subsection[1]:subsection[3], subsection[0]:subsection[2]]
+        
         w = wanted.shape[0]
         h = wanted.shape[1]
  
@@ -56,15 +60,23 @@ class PokerImgDetect:
         if len(loc) == 0:
             return []
         
-        zipped = np.array(
-            [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
-        )
+
+        if subsection is not None:
+            zipped = np.array(
+                [[pt[0] + subsection[0], pt[1] + subsection[1], pt[0] + h + subsection[0], pt[1] + w + subsection[1]] for pt in zip(*loc[::-1])]
+            )
+
+        else:
+
+            zipped = np.array(
+                [[pt[0], pt[1], pt[0] + h, pt[1] + w] for pt in zip(*loc[::-1])]
+            )
 
         return non_max_suppression_slow(zipped, 0.01) 
 
     @staticmethod
-    def ident_one_template(img: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.9) -> Union[tuple[int, int, int, int], None]:
-        locs = PokerImgDetect.template_detect(img, wanted, threshold=threshold)
+    def ident_one_template(img: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.9, subsection: Union[tuple[int,int,int,int], None]=None) -> Union[tuple[int, int, int, int], None]:
+        locs = PokerImgDetect.template_detect(img, wanted, threshold=threshold, subsection=subsection)
 
         if len(locs) == 0:
             return None
@@ -100,25 +112,31 @@ class PokerImgDetect:
 
 
     def sit_buttons(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:
-        return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold=threshold)
+        return self.template_detect(screenshot, self.SIT_BUTTON_BYTES, threshold)
     
+    # only check bottom 4th of the screen for these buttons
+
+    def __get_button_subsection(self, screenshot: cv2.typing.MatLike) -> tuple[int, int, int, int]:
+        h = screenshot.shape[0]
+        return (0, h - h // 5, screenshot.shape[1], h)
+
     def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
-        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold=threshold)
+        return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
 
 
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
@@ -181,7 +199,7 @@ class PokerImgDetect:
 
         # check if whole image is white
         if np.all(binary_image == 255):
-            print('Erased edges flood fill failed, whole image is white')
+            # print('Erased edges flood fill failed, whole image is white')
             return old_image
         else:
             return binary_image
@@ -267,6 +285,10 @@ class PokerImgDetect:
         binary = self.erase_edges(binary)
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         result = pytesseract.image_to_string(binary, lang='eng', config=CUSTOM_CONFIG.format(psm=psm)).strip()
    

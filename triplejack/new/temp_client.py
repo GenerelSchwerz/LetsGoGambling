@@ -21,7 +21,8 @@ from .utils import prepare_ss
 from .base import TJPokerDetect, report_info
 
 
-from ..abstract.impl import PokerEventHandler, PokerEvents, PokerStages
+from ..abstract.pokerEventHandler import PokerEvents, PokerStages
+from .base.gameEvents import TJEventEmitter
 
 import time
 import random
@@ -58,20 +59,18 @@ class NewPokerBot:
         self.in_hand = False
 
         self.detector = TJPokerDetect()
-        self.event_handler = PokerEventHandler(self.detector)
+        self.event_handler = TJEventEmitter(self.detector)
 
 
     # TODO: Specify options for driver upon entry.
-    def __enter__(self, **kwargs) -> Self:
+    def __enter__(self, headless=False) -> Self:
     
         NewPokerBot.currently_running += 1
         log.debug(f"Entering PokerBot {NewPokerBot.currently_running}")
 
         self.detector.load_images()
         options = webdriver.ChromeOptions()
-        # args.add_argument("--use-gl=swiftshader")
-        # args.add_argument("--disable-gpu")
-        # options.add_argument("--enable-webgl")
+
     
         options.add_argument('--no-sandbox')
         options.add_argument('--use-angle=vulkan')
@@ -83,11 +82,8 @@ class NewPokerBot:
         options.add_argument("--window-size=1920,1080")
         options.add_argument("--start-maximized")
 
-        # start fullscreen
-        options.add_argument("--kiosk")
-
-        # options.add_argument('--headless=new')
-
+        if headless:
+            options.add_argument('--headless=new')
 
         self.driver = webdriver.Chrome(options=options)
         self.driver.maximize_window()
@@ -148,11 +144,6 @@ class NewPokerBot:
 
         # TODO: not accurate when not on full screen. Don't know why.
         canvas = self.driver.find_element(By.TAG_NAME, "canvas")
-
-        # print(canvas.size["width"], canvas.size["height"])
-        # print(x, y)
-        # print(canvas.location)
-        # print(-canvas.size["width"] // 2 + x, -canvas.size["height"] // 2 + y)
 
         ActionChains(self.driver).move_to_element_with_offset(
             canvas, -canvas.size["width"] // 2, -canvas.size["height"] // 2
@@ -229,19 +220,27 @@ class NewPokerBot:
             else:
                 break
 
-        rooms = self.get_all_room_names()
+        def print_rooms():
+            rooms = self.get_all_room_names()
 
-        print("Rooms available: ")
-        for i, room in enumerate(rooms, 0):
-            print(f"{i}: {room}")
+            print("Rooms available: ")
+            for i, room in enumerate(rooms, 0):
+                print(f"{i}: {room}")
 
         print("Type 'skip' to skip room selection")
+        print("Type 'rooms' to see available rooms")
+        print_rooms()
 
         while True:
             room = input("Enter room name: ")
             log.debug(f"Attempting to find room {room}")
 
             if room == "skip": break
+
+            if room == "rooms":
+                print_rooms()
+                continue
+
             room_el = self.find_room(room)
             if room_el:
                 while self.try_close_popup():
@@ -255,6 +254,10 @@ class NewPokerBot:
             time.sleep(0.25)
 
         ss = self.canvas_screenshot(store=False)
+
+        if ss is None:
+            return
+
         ss_good = prepare_ss(ss)
         locations = self.detector.sit_buttons(ss_good)
 
@@ -371,8 +374,6 @@ def show_all_info(bot: NewPokerBot, save=True):
 
     card_and_locs = bot.detector.community_cards_and_locs(ss_good)
 
-    print(card_and_locs)
-
     for card, loc in card_and_locs:
         cv2.putText(
             ss_good,
@@ -413,7 +414,7 @@ def main():
     import time
 
     with NewPokerBot() as bot:
-        bot.initialize("ForTheChips", "WooHoo123!")
+        bot.initialize("Generel", "Rocky1928!")
         bot.halt_until_room_select()
         time.sleep(4) # built-in delay/transition into the website
 
@@ -423,33 +424,37 @@ def main():
 
 
         def on_info(stage: PokerStages, hand: list[Card], community: list[Card]):
-            show_all_info(bot, save=True)
+            # show_all_info(bot, save=True)
             print(PokerStages.to_str(stage), [Card.int_to_pretty_str(c) for c in hand], [Card.int_to_pretty_str(c) for c in community])
        
         def on_new_stage(from_stage: PokerStages, to_stage: PokerStages):
             print(PokerStages.to_str(from_stage), "=>", PokerStages.to_str(to_stage))
 
+        def on_new_hand(*args):
+            print("New Hand", *args)
+
+        bot.event_handler.on(PokerEvents.NEW_HAND, on_new_hand)
         bot.event_handler.on(PokerEvents.NEW_STAGE, on_new_stage)
         bot.event_handler.on(PokerEvents.INFO, on_info)
 
         # main loop.
+
+        time_split = 2
         last_time = time.time()
         while True:
 
             # input("take screenie ")
             img = bot.canvas_screenshot(store=False) # save_loc=f"triplejack/new/base/tests/test-{int(time.time())}.png"
             img = prepare_ss(img)
-            # report_info(bot.detector, img)
+            # report_info(bot.detector img)
             bot.event_handler.tick(img)
 
             now = time.time()
-            dur = max(0, 0.5 - (now - last_time))
+            dur = max(0, time_split - (now - last_time))
             print("Sleeping for ", dur, "been", now - last_time, "seconds since last tick.")
             time.sleep(dur)
             last_time = time.time()
 
-
-        time.sleep(600)
 
 
 if __name__ == "__main__":

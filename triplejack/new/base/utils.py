@@ -1,5 +1,5 @@
 from typing import Any
-from ...abstract.impl.eventEmitter import PokerStages
+from ...abstract.pokerEventHandler import PokerStages
 
 
 def suit_full_name_to_abbrev(suit_full_name: str) -> str:

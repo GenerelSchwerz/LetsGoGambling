@@ -28,18 +28,24 @@ class PokerDetection(ABC):
     def total_pot(self) -> int:
         pass
 
+    @abstractmethod
+    def current_bets(self) -> list[int]:
+        pass
 
     @abstractmethod
-    def current_bet(self) -> int:
+    def current_bet(self) -> int:   
         pass
 
     @abstractmethod
     def min_bet(self) -> int:
         pass
 
-    # TODO: May not be implemented.
     @abstractmethod
-    def big_blinds(self) -> int:
+    def big_blind(self) -> int:
+        pass
+
+    @abstractmethod
+    def small_blind(self) -> int:
         pass
 
     @abstractmethod
