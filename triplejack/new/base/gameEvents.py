@@ -103,9 +103,6 @@ class TJEventEmitter(PokerEventHandler):
             elif test == 0:
                 current_stage = PokerStages.PREFLOP
             else:
-
-                # we are detecting false positives (players' displayed cards) as community cards.
-                # TODO ideal fix is cropping the search range to just the table. Didn't do that yet.
                 current_stage = self.last_stage
 
         else:
@@ -160,20 +157,19 @@ class TJEventEmitter(PokerEventHandler):
         # =========================
         # Now, check for our turn.
         # =========================
-        
-        our_turn = False
+
         call_button = self.detector.call_button(image)
         if call_button is not None:
             our_turn = True
         else:
-            check_button = self.detector.check_button(image)
-            if check_button is not None:
+            fold_button = self.detector.fold_button(image)
+            if fold_button is not None:
                 our_turn = True
                     
             else:
                 our_turn = False
 
-        if our_turn != self.our_turn and our_turn == True:
+        if our_turn != self.our_turn and our_turn:
             self.__emit_our_turn(image)
         
         self.our_turn = our_turn

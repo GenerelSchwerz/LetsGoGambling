@@ -489,7 +489,7 @@ def main():
 
             now = time.time()
             dur = max(0, time_split - (now - last_time))
-            print("Sleeping for ", dur, "been", now - last_time, "seconds since last tick.")
+            print("Sleeping for ", dur, "been", now - last_time, "seconds taken to calculate since last tick.", dur + now - last_time, "seconds total")
             time.sleep(dur)
             last_time = time.time()
 

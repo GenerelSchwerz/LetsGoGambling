@@ -7,6 +7,7 @@ from ...abstract import PokerDetection
 from ...abstract.impl import *
 from cv2.typing import MatLike
 import cv2
+import numpy as np
 
 from treys import Card
 
@@ -278,7 +279,70 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return super().table_players()
 
     def active_players(self, img: MatLike) -> list:
-        return super().active_players()
+        # decrease the brightness of green pixels (the board)
+        less_green_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        green_mask = cv2.inRange(less_green_img, np.array([35, 100, 100]), np.array([70, 255, 255]))
+        factor = 0.4
+        less_green_img[..., 2] = less_green_img[..., 2] * (1 - green_mask / 255 * (1 - factor))
+        # increase the brightness of non-green pixels
+        less_green_img[..., 2] = less_green_img[..., 2] * (1 + green_mask / 255 * factor)
+
+        less_green_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
+
+
+
+        # blur to smooth out circles
+        modified_img = cv2.medianBlur(less_green_img, 7)
+
+        # crank that bri-con!
+        brightness = 120
+        contrast = 120
+        modified_img = np.int16(modified_img)
+        modified_img = modified_img * (contrast / 127 + 1) - contrast + brightness
+        modified_img = np.clip(modified_img, 0, 255)
+        modified_img = np.uint8(modified_img)
+
+        cv2.imshow("img", modified_img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        _, binary_img = cv2.threshold(cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY), 0, 255,
+                                      cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        height, width = binary_img.shape
+        binary_img[3 * height // 10: int(5.5 * height // 10),
+        width // 5: 4 * width // 5] = 0  # black out the community cards
+        binary_img[4 * height // 5:, :] = 0  # black out the hole cards
+
+        # show
+        cv2.imshow("img", binary_img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        circles = cv2.HoughCircles(binary_img, cv2.HOUGH_GRADIENT, 1, 120, param1=50, param2=25, minRadius=50,
+                                   maxRadius=130)
+        if circles is None:
+            return []
+        players = []
+        circles = np.uint16(np.around(circles))
+        for circle in circles[0]:
+            print(circle)
+            # show circle
+            cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
+            cv2.circle(img, (circle[0], circle[1]), 2, (0, 0, 255), 3)
+            cv2.imshow("img", img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+            center = (circle[0], circle[1])
+            top_y = center[1] + 80
+            bottom_y = top_y + 35
+            left_x = center[0] - 95
+            right_x = left_x + 190
+            name = self.ocr_text_from_image(less_green_img, (left_x, top_y, right_x, bottom_y), invert=True, brightness=0.2, contrast=2.75, allowed_chars=False)
+            players.append(name)
+
+        return players
 
     def big_blind(self, img: MatLike) -> int:
         big_blind_popup = self.ident_one_template(img, self.BIG_POPUP_BYTES)
@@ -398,16 +462,6 @@ def report_info(detector: TJPokerDetect, ss: Union[str, cv2.typing.MatLike]):
          img = ss
        
     img2 = img.copy()
-    # i'm just gonna go pass out i think please call me later if ur still up
-    # i'm probably going to call it an early night
-    # if you need me for anything let me know
-    # and if you have any tasks you want to relegate to me that are either really quick and simple for tonight or other tasks for tmrw, lmk
-    # love you <3
-    # oh btw if you end up super night owling it and get to the point where u wanna test a decisionmaker,
-    # check the latest commit in my repository, the method signature looks like 
-    # make_decision([holecard1, holecard2], board_cards, stack_size, pot_value, current_bet,
-                                        #  min_bet, num_opponents, self.big_blind, middle_pot_value, self.flags)
-# and you can make an abstract class or some shit idk and replace the "returns" inside PokerDecisionMaker with returning an enum decision thing or something anyway bye love you
 
 
     now = time.time()

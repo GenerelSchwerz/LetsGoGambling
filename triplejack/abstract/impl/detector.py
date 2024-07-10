@@ -226,7 +226,7 @@ class PokerImgDetect:
 
 
 
-    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0):
+    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0, allowed_chars=True):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
@@ -284,7 +284,11 @@ class PokerImgDetect:
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        result = pytesseract.image_to_string(binary, lang='eng', config=CUSTOM_CONFIG.format(psm=psm)).strip()
+        if allowed_chars:
+            config = CUSTOM_CONFIG.format(psm=psm)
+        else:
+            config = '--oem 3 --psm {psm}'.format(psm=psm)
+        result = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
    
         # can you tell what number has given me hours of trouble with tesseract and TJ font
         if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", ]):
