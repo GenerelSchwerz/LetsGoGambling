@@ -22,16 +22,18 @@ def card_to_abbrev(card: str) -> str:
 
 
 def pretty_str_to_int(str: str) -> int:
-
-    str = str.replace(",", "").lower()
-
-    if str[-1] == "k":
-        return int(float(str[:-1]) * 1000)
-    
-    if str[-1] == "m":
-        return int(float(str[:-1]) * 1000000)
-    
-    return int(str)
+    number = str.lower()
+    # remove comma/period
+    has_period = '.' in number or ',' in number
+    new_number = number.replace(',', '')
+    new_number = new_number.replace('.', '')
+    new_number = new_number.replace('k', '00' if has_period else '000')
+    new_number = new_number.replace('m', '00000' if has_period else '000000')
+    try:
+        return int(new_number)
+    except ValueError:
+        print(f'Could not convert number to int: {number} ({new_number})')
+        return 0
 
 
 def cards_to_stage(cards: list[Any]) -> PokerStages:

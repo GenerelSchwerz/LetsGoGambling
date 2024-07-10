@@ -223,18 +223,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         right = left + 77
         bottom = top + 27
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
-        # TODO: make a util method if needed by other functions like reading call button
-        has_period = '.' in number or ',' in number
-        new_number = number.replace(',', '')
-        new_number = new_number.replace('.', '')
-        # replace 'k' with '000'
-        new_number = new_number.replace('k', '00' if has_period else '000')
-        new_number = new_number.replace('K', '00' if has_period else '000')
-        try:
-            return int(new_number)
-        except ValueError:
-            print(f'Could not convert number to int: {number} ({new_number})')
-            return 0
+        return pretty_str_to_int(number)
 
     def middle_pot(self, img: MatLike) -> int:
 
@@ -291,10 +280,44 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return ret
         
     def current_bet(self, img: MatLike) -> int:
-        return max(self.current_bets(img))
+        # TODO: obsolesce this method by tracking player bet and max of current_bets()
+        check_button = self.check_button(img)
+        if check_button is not None:
+            return 0
+        else:
+            call_button = self.call_button(img)
+            if call_button is not None:
+                loc = (call_button[0] - 10, call_button[3], call_button[2] + 10, call_button[3] + (call_button[3] - call_button[1]) + 3)
+                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+            else:
+                allin_button = self.allin_button(img)
+                if allin_button is not None:
+                    loc = (allin_button[0] - 10, allin_button[3], allin_button[2] + 10, allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
+                    return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                else:
+                    raise RuntimeError("Not my turn or couldn't find current bet")
+
 
     def min_bet(self, img: MatLike) -> int:
-        return super().min_bet()
+        # when you call this, check if current_bet >= stack_size, if it is, save time by not calling this method
+        bet_button = self.bet_button(img)
+        if bet_button is not None:
+            loc = (bet_button[0] - 10, bet_button[3], bet_button[2] + 10, bet_button[3] + (bet_button[3] - bet_button[1]) + 3)
+            return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+        else:
+            raise_button = self.raise_button(img)
+            if raise_button is not None:
+                loc = (raise_button[0] - 10, raise_button[3], raise_button[2] + 10,
+                       raise_button[3] + (raise_button[3] - raise_button[1]) + 3)
+                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+            else:
+                allin_button = self.allin_button(img)
+                if allin_button is not None:
+                    loc = (allin_button[0] - 10, allin_button[3], allin_button[2] + 10,
+                           allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
+                    return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                else:
+                    raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(self, img: MatLike) -> list:
         return super().table_players()
