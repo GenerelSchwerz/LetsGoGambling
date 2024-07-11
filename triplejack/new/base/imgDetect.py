@@ -336,7 +336,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
 
         # blur to smooth out circles
-        modified_img = cv2.medianBlur(less_green_img, 7)
+        modified_img = cv2.GaussianBlur(less_green_img, (21, 21), 0)
 
         # crank that bri-con!
         brightness = 120
@@ -363,8 +363,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        circles = cv2.HoughCircles(binary_img, cv2.HOUGH_GRADIENT, 1, 120, param1=50, param2=25, minRadius=50,
-                                   maxRadius=130)
+        circles = cv2.HoughCircles(binary_img, cv2.HOUGH_GRADIENT, 1, 140, param1=50, param2=10, minRadius=90, maxRadius=120)
         if circles is None:
             return []
         players = []
