@@ -273,7 +273,7 @@ class PokerImgDetect:
                         black_neighbours_r4 = count_black_neighbours(output_image, r, c, 4)
                         if ((is_isolated(up, down, left, right) and black_neighbours_r2 < 6)
                                 or black_neighbours_r4 < 9):
-                            print('Isolated pixel found at ', c, r)
+                            # print('Isolated pixel found at ', c, r)
                             # debug_image = output_image.copy()
                             output_image[r, c] = 255
                             # debug_image[r, c] = 127
@@ -288,7 +288,7 @@ class PokerImgDetect:
 
 
 
-    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0, allowed_chars=True):
+    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0, allowed_chars=True, scale=40):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
@@ -318,6 +318,9 @@ class PokerImgDetect:
             contrasted_img = ImageEnhance.Contrast(img).enhance(contrast)
             image = np.array(contrasted_img)
 
+        # cv2.imshow("img", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
         distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
@@ -329,7 +332,7 @@ class PokerImgDetect:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # scale height to 33 pixels using bicubic resampling
-        gray = cv2.resize(gray, (0, 0), fx=40 / gray.shape[0], fy=40 / gray.shape[0], interpolation=cv2.INTER_CUBIC)
+        gray = cv2.resize(gray, (0, 0), fx=scale / gray.shape[0], fy=scale / gray.shape[0], interpolation=cv2.INTER_CUBIC)
 
         # i know this effect better as feathering but everyone calls it erosion
         if erode:
@@ -342,6 +345,10 @@ class PokerImgDetect:
 
         # Apply binary thresholding
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         if invert:
             binary = cv2.bitwise_not(binary)
