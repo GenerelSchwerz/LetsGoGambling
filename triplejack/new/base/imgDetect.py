@@ -357,9 +357,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         binary_img[4 * height // 5:, :] = 0  # black out the hole cards
 
         # show
-        cv2.imshow("img", binary_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", binary_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         circles = cv2.HoughCircles(binary_img, cv2.HOUGH_GRADIENT, 1, 140, param1=50, param2=10, minRadius=90, maxRadius=120)
         if circles is None:
@@ -369,8 +369,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         for circle in circles[0]:
             print(circle)
             # show circle
-            cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
-            cv2.circle(img, (circle[0], circle[1]), 2, (0, 0, 255), 3)
+            # cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
+            # cv2.circle(img, (circle[0], circle[1]), 2, (0, 0, 255), 3)
             # cv2.imshow("img", img)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
@@ -380,7 +380,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             bottom_y = int(top_y + circle[2] * (1/2.5))
             left_x = int(center[0] - circle[2])
             right_x = int(center[0] + circle[2])
-            name = self.ocr_text_from_image(less_green_img, (left_x, top_y, right_x, bottom_y), invert=True, brightness=0.2, contrast=2.75, allowed_chars=False)
+            name = self.ocr_text_from_image(img, (left_x, top_y, right_x, bottom_y), invert=True, brightness=0.2, contrast=4, allowed_chars=False)
+            print(name)
             players.append(name)
 
         return players
