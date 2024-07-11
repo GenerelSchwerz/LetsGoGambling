@@ -202,15 +202,15 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> tuple[int, int, int, int]:
         return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
     
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        return super().find_community_suits(ss2, threshold)
+        return super().find_community_suits(ss2, threshold, subsection)
 
-    def find_hole_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_hole_suits(self, ss1: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:
         ss2 = cv2.cvtColor(ss1, cv2.COLOR_RGB2GRAY)
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        return super().find_hole_suits(ss2, threshold)
+        return super().find_hole_suits(ss2, threshold, subsection)
 
     def set_seat_loc(self, loc: tuple[int, int]):
         self.seat_loc = (loc[0], int(loc[1] * 0.81))
@@ -344,9 +344,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         modified_img = np.clip(modified_img, 0, 255)
         modified_img = np.uint8(modified_img)
 
-        cv2.imshow("img", modified_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", modified_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         _, binary_img = cv2.threshold(cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY), 0, 255,
                                       cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -400,11 +400,11 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         return self.ident_near_popup(img, small_blind_popup)
         
 
-    def get_full_cards(self, img: MatLike, hole=False) -> list[tuple[Card, tuple[int, int, int, int]]]:
+    def get_full_cards(self, img: MatLike, hole=False, subsection: Union[tuple[int, int, int, int], None]=None) -> list[tuple[Card, tuple[int, int, int, int]]]:
         if hole:
-            suits = self.find_hole_suits(img)
+            suits = self.find_hole_suits(img, subsection=subsection)
         else:
-            suits = self.find_community_suits(img)
+            suits = self.find_community_suits(img, subsection=subsection)
 
         ret = []
 
@@ -412,7 +412,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             for loc in locs:
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
 
-                subsection = (
+                text_area = (
                     loc[0] - w // 6,
                     loc[1] - h - h // 6,
                     loc[2] + w // 6,
@@ -420,7 +420,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 ) 
 
               
-                text = self.ocr_text_from_image(img, subsection, psm=7, contrast=1.5)
+                text = self.ocr_text_from_image(img, text_area, psm=7, contrast=1.5)
       
                 loc = (
                     loc[0] - w // 6,
@@ -457,17 +457,19 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         return ret
 
+    # TODO update these functions to use the new ident_template subsection
     def community_cards_and_locs(self, img: MatLike) -> list[tuple[Card, tuple[int, int, int, int]]]:
         # resize image to the middle 4th of the screen
 
         h = img.shape[0]
         w = img.shape[1]
-        img = img[h // 4 : h // 4 * 3, w // 4: w // 4 * 3, :]
-
-        ret = self.get_full_cards(img)
+        # img = img[h // 4 : h // 4 * 3, w // 4: w // 4 * 3, :]
+        subsection = (w // 4, h // 4, w // 4 * 3, h // 4 * 3)
+        ret = self.get_full_cards(img, subsection=subsection)
 
         # shift the y position of the cards up 1/2th of the height of the image
-        return list(map(lambda x: (x[0], (x[1][0] + w // 4, x[1][1] + h // 4, x[1][2] + w // 4, x[1][3] + h // 4)), ret))
+        # return list(map(lambda x: (x[0], (x[1][0] + w // 4, x[1][1] + h // 4, x[1][2] + w // 4, x[1][3] + h // 4)), ret))
+        return ret
 
 
 
@@ -479,12 +481,15 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # resize image to the bottom 4th of the screen
         h = img.shape[0]
         w = img.shape[1]
-        img = img[img.shape[0] // 4 * 3 :, : w // 4, :]
-        ret = self.get_full_cards(img, hole=True)
+        # img = img[img.shape[0] // 4 * 3 :, : w // 4, :]
+
+        subsection = (0, h // 4 * 3, w // 4, h)
+        ret = self.get_full_cards(img, hole=True, subsection=subsection)
 
     
         # shift the y position of the cards up 1/2th of the height of the image
-        return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4 * 3, x[1][2], x[1][3] + h // 4 * 3)), ret))
+        # return list(map(lambda x: (x[0], (x[1][0], x[1][1] + h // 4 * 3, x[1][2], x[1][3] + h // 4 * 3)), ret))
+        return ret
 
     def hole_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
@@ -582,12 +587,14 @@ def report_info(detector: TJPokerDetect, ss: Union[str, cv2.typing.MatLike]):
     tot_pot = mid_pot + sum(current_bets)
     current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
+    active_players = detector.active_players(img)
+
 
     filename = ss if isinstance(ss, str) else "current image"
 
     
 
-    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
+    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Players: {active_players} | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -599,7 +606,7 @@ if __name__ == "__main__":
     import os
     import time
 
-    folder = "triplejack/new/base/tests/midrun"
+    folder = "triplejack/new/base/tests"
     # for all files in a directory, run the report_info function
     files = os.listdir(folder)
     # files = [
