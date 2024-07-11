@@ -211,7 +211,7 @@ class PokerImgDetect:
         for r in range(rows):
             for c in range(cols):
                 # Only consider black pixels (value 0)
-                if image[r, c] == 0:
+                if output_image[r, c] == 0:
                     white_count = 0
 
                     # N, E, S, W
@@ -222,7 +222,7 @@ class PokerImgDetect:
                         nr, nc = r + dr, c + dc
                         # Check if the neighbor is within the bounds of the image
                         if 0 <= nr < rows and 0 <= nc < cols:
-                            if image[nr, nc] == 255:
+                            if output_image[nr, nc] == 255:
                                 white_count += 1
                                 if dr == -1 and dc == 0:
                                     dirs[0] = True
@@ -232,46 +232,56 @@ class PokerImgDetect:
                                     dirs[1] = True
                                 elif dc == -1 and dr == 0:
                                     dirs[3] = True
-
-                    # If a black pixel is surrounded by 5 or more white pixels,
-                    # and spans more than 2 directions,
-                    # convert it to white
                     if white_count >= 5 and sum(dirs) > 2:
                         to_white_out.append((r, c))
         for r, c in to_white_out:
             output_image[r, c] = 255
 
-        def count_black_in_line(pixels):
+        def count_black_in_line(pixels) -> int:
             return len([pixel for pixel in pixels if pixel == 0])
+
+        def count_black_neighbours(binary_image, r, c, radius) -> int:
+            count = 0
+            for i in range(-radius, radius + 1):
+                for j in range(-radius, radius + 1):
+                    if i == 0 and j == 0:
+                        continue
+                    if 0 <= c + i < binary_image.shape[1] and 0 <= r + j < binary_image.shape[0]:
+                        if binary_image[r + j, c + i] == 0:
+                            count += 1
+            return count
+
+        def is_isolated(up, down, left, right) -> bool:
+            gamma_rays = [count_black_in_line(up), count_black_in_line(down),
+                          count_black_in_line(left), count_black_in_line(right)]
+            return sum(gamma_rays) <= 4
 
         done = False
         while not done:
             done = True
-            for x in range(cols):
-                for y in range(rows):
+            for c in range(cols):
+                for r in range(rows):
                     # if the pixel is black
-                    if output_image[y, x] == 0:
+                    if output_image[r, c] == 0:
                         # get the lines in each direction not including x,y
-                        up = output_image[0:y, x] if y > 0 else []
-                        down = output_image[y + 1:rows, x] if y < rows - 1 else []
-                        left = output_image[y, 0:x] if x > 0 else []
-                        right = output_image[y, x + 1:cols] if x < cols - 1 else []
-
+                        up = output_image[max(0, r - 15):r, c] if r > 0 else []
+                        down = output_image[r + 1:min(rows, r + 15), c] if r < rows - 1 else []
+                        left = output_image[r, max(0, c - 15):c] if c > 0 else []
+                        right = output_image[r, c + 1:min(cols, c + 15)] if c < cols - 1 else []
                         # if there's at most one black pixel in the way to the edge
-                        if (count_black_in_line(up) <= 1 and
-                                count_black_in_line(down) <= 1 and
-                                count_black_in_line(left) <= 1 and
-                                count_black_in_line(right) <= 1):
-                            print('Isolated pixel found at ', x, y)
-                            debug_image = output_image.copy()
-                            output_image[y, x] = 255
-                            # the pixel is isolated, so make it white
-                            debug_image[y, x] = 127
-                            # scale up debug_image
-                            debug_image = cv2.resize(debug_image, (0, 0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
-                            cv2.imshow("img", debug_image)
-                            cv2.waitKey(0)
-                            cv2.destroyAllWindows()
+                        black_neighbours_r2 = count_black_neighbours(output_image, r, c, 2)
+                        black_neighbours_r4 = count_black_neighbours(output_image, r, c, 4)
+                        if ((is_isolated(up, down, left, right) and black_neighbours_r2 < 6)
+                                or black_neighbours_r4 < 9):
+                            print('Isolated pixel found at ', c, r)
+                            # debug_image = output_image.copy()
+                            output_image[r, c] = 255
+                            # debug_image[r, c] = 127
+                            # debug_image = cv2.resize(debug_image, (0, 0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
+                            # cv2.imshow("img", debug_image)
+                            # cv2.waitKey(0)
+                            # cv2.destroyAllWindows()
+
                             done = False
 
         return output_image
@@ -281,10 +291,6 @@ class PokerImgDetect:
     def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0, allowed_chars=True):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
-
-        # cv2.imshow("img", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
         if rotation_angle != 0:
             image = Image.fromarray(image)
