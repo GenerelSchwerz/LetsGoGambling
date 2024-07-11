@@ -133,11 +133,11 @@ class PokerImgDetect:
         return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold)
 
 
-    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77) -> dict[str, list[tuple[int, int, int, int]]]:
-        hearts = self.template_detect(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold)
-        diamonds = self.template_detect(ss1, self.COMMUNITY_DIAMONDS_SUIT_BYTES, threshold=threshold)
-        clubs = self.template_detect(ss1, self.COMMUNITY_CLUBS_SUIT_BYTES, threshold=threshold)
-        spades = self.template_detect(ss1, self.COMMUNITY_SPADES_SUIT_BYTES, threshold=threshold)
+    def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:
+        hearts = self.template_detect(ss1, self.COMMUNITY_HEART_SUIT_BYTES, threshold=threshold, subsection=subsection)
+        diamonds = self.template_detect(ss1, self.COMMUNITY_DIAMONDS_SUIT_BYTES, threshold=threshold, subsection=subsection)    
+        clubs = self.template_detect(ss1, self.COMMUNITY_CLUBS_SUIT_BYTES, threshold=threshold, subsection=subsection)
+        spades = self.template_detect(ss1, self.COMMUNITY_SPADES_SUIT_BYTES, threshold=threshold, subsection=subsection)
         return {
             "hearts": hearts,
             "diamonds": diamonds,
@@ -145,16 +145,16 @@ class PokerImgDetect:
             "spades": spades
         }
         
-    def find_hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85) -> dict[str, list[tuple[int, int, int, int]]]:
+    def find_hole_suits(self, screenshot: cv2.typing.MatLike, threshold=0.85, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:
 
         # cv2.imshow("img", screenshot)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        hearts = self.template_detect(screenshot, self.HOLE_HEART_SUIT_BYTES, threshold=threshold)
-        diamonds = self.template_detect(screenshot, self.HOLE_DIAMONDS_SUIT_BYTES, threshold=threshold)
-        clubs = self.template_detect(screenshot, self.HOLE_CLUBS_SUIT_BYTES, threshold=threshold)
-        spades = self.template_detect(screenshot, self.HOLE_SPADES_SUIT_BYTES, threshold=threshold)
+        hearts = self.template_detect(screenshot, self.HOLE_HEART_SUIT_BYTES, threshold=threshold, subsection=subsection)
+        diamonds = self.template_detect(screenshot, self.HOLE_DIAMONDS_SUIT_BYTES, threshold=threshold, subsection=subsection)
+        clubs = self.template_detect(screenshot, self.HOLE_CLUBS_SUIT_BYTES, threshold=threshold, subsection=subsection)
+        spades = self.template_detect(screenshot, self.HOLE_SPADES_SUIT_BYTES, threshold=threshold, subsection=subsection)
         return {
             "hearts": hearts,
             "diamonds": diamonds,
