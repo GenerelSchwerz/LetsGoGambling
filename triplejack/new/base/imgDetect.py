@@ -333,8 +333,6 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         less_green_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
 
-
-
         # blur to smooth out circles
         modified_img = cv2.GaussianBlur(less_green_img, (21, 21), 0)
 
@@ -373,15 +371,15 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             # show circle
             cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
             cv2.circle(img, (circle[0], circle[1]), 2, (0, 0, 255), 3)
-            cv2.imshow("img", img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # cv2.imshow("img", img)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
             center = (circle[0], circle[1])
-            top_y = center[1] + 80
-            bottom_y = top_y + 35
-            left_x = center[0] - 95
-            right_x = left_x + 190
+            top_y = int(center[1] + circle[2] * 0.65)
+            bottom_y = int(top_y + circle[2] * (1/2.5))
+            left_x = int(center[0] - circle[2])
+            right_x = int(center[0] + circle[2])
             name = self.ocr_text_from_image(less_green_img, (left_x, top_y, right_x, bottom_y), invert=True, brightness=0.2, contrast=2.75, allowed_chars=False)
             players.append(name)
 
