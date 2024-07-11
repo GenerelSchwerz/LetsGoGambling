@@ -483,7 +483,7 @@ def main():
         while True:
 
             # input("take screenie ")
-            img = bot.canvas_screenshot(store=False, save_loc="test.png") #
+            img = bot.canvas_screenshot(store=False, save_loc=f"triplejack/new/base/tests/midrun/test-{int(time.time().png)}") #
             img = prepare_ss(img)
             # report_info(bot.detector img)
             bot.event_handler.tick(img)

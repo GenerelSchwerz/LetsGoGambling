@@ -604,16 +604,16 @@ if __name__ == "__main__":
     folder = "triplejack/new/base/tests/midrun"
     # for all files in a directory, run the report_info function
     files = os.listdir(folder)
-    files = [
-        # "heck.png"
-        "/home/generel/Documents/code/python/poker/LetsGoGambling/triplejack/new/base/tests/midrun/test-1720622523.png"
-    ]
+    # files = [
+    #     # "heck.png"
+    #     "/home/generel/Documents/code/python/poker/LetsGoGambling/triplejack/new/base/tests/midrun/test-1720622523.png"
+    # ]
     files = sorted(files)
     files.reverse()
     print(folder, files)
     for filename in files:
         if filename.endswith(".png"):
-            path =  os.path.join(filename)
+            path =  os.path.join(folder, filename)
             print("running report_info on",path)
 
            
