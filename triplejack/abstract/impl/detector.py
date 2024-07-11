@@ -206,12 +206,17 @@ class PokerImgDetect:
         # Define the 8 neighbor directions (N, NE, E, SE, S, SW, W, NW)
         directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 
+        to_white_out = []
         # Iterate over each pixel in the image
         for r in range(rows):
             for c in range(cols):
                 # Only consider black pixels (value 0)
                 if image[r, c] == 0:
                     white_count = 0
+
+                    # N, E, S, W
+                    dirs = [False, False, False, False]
+
                     # Count white neighbors
                     for dr, dc in directions:
                         nr, nc = r + dr, c + dc
@@ -219,9 +224,56 @@ class PokerImgDetect:
                         if 0 <= nr < rows and 0 <= nc < cols:
                             if image[nr, nc] == 255:
                                 white_count += 1
-                    # If a black pixel is surrounded by 5 or more white pixels, convert it to white
-                    if white_count >= 5:
-                        output_image[r, c] = 255
+                                if dr == -1 and dc == 0:
+                                    dirs[0] = True
+                                elif dr == 1 and dc == 0:
+                                    dirs[2] = True
+                                if dc == 1 and dr == 0:
+                                    dirs[1] = True
+                                elif dc == -1 and dr == 0:
+                                    dirs[3] = True
+
+                    # If a black pixel is surrounded by 5 or more white pixels,
+                    # and spans more than 2 directions,
+                    # convert it to white
+                    if white_count >= 5 and sum(dirs) > 2:
+                        to_white_out.append((r, c))
+        for r, c in to_white_out:
+            output_image[r, c] = 255
+
+        def count_black_in_line(pixels):
+            return len([pixel for pixel in pixels if pixel == 0])
+
+        done = False
+        while not done:
+            done = True
+            for x in range(cols):
+                for y in range(rows):
+                    # if the pixel is black
+                    if output_image[y, x] == 0:
+                        # get the lines in each direction not including x,y
+                        up = output_image[0:y, x] if y > 0 else []
+                        down = output_image[y + 1:rows, x] if y < rows - 1 else []
+                        left = output_image[y, 0:x] if x > 0 else []
+                        right = output_image[y, x + 1:cols] if x < cols - 1 else []
+
+                        # if there's at most one black pixel in the way to the edge
+                        if (count_black_in_line(up) <= 1 and
+                                count_black_in_line(down) <= 1 and
+                                count_black_in_line(left) <= 1 and
+                                count_black_in_line(right) <= 1):
+                            print('Isolated pixel found at ', x, y)
+                            debug_image = output_image.copy()
+                            output_image[y, x] = 255
+                            # the pixel is isolated, so make it white
+                            debug_image[y, x] = 127
+                            # scale up debug_image
+                            debug_image = cv2.resize(debug_image, (0, 0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
+                            cv2.imshow("img", debug_image)
+                            cv2.waitKey(0)
+                            cv2.destroyAllWindows()
+                            done = False
+
         return output_image
 
 
@@ -238,6 +290,19 @@ class PokerImgDetect:
             image = Image.fromarray(image)
             image = image.rotate(rotation_angle, resample=Resampling.BICUBIC, fillcolor=(255, 255, 255))
             image = np.array(image)
+
+        if invert:  # white pixels matter more than colored, so decrease brightness of saturated pixels
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            hsv_image = np.float32(image)
+
+            # scale the V value adjustments based on S value
+            hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (-1 * (hsv_image[:, :, 1] / 255)))
+
+            # ensure that the HSV values are in the valid range
+            hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
+
+            hsv_image = np.uint8(hsv_image)
+            image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
 
         if brightness > 0.0:
             image = cv2.convertScaleAbs(image, alpha=brightness, beta=0)
@@ -256,7 +321,6 @@ class PokerImgDetect:
 
         # TODO this is occasionally failing. I don't know why
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-
 
         # scale height to 33 pixels using bicubic resampling
         gray = cv2.resize(gray, (0, 0), fx=40 / gray.shape[0], fy=40 / gray.shape[0], interpolation=cv2.INTER_CUBIC)
