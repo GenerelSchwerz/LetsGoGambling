@@ -251,10 +251,10 @@ class PokerImgDetect:
                             count += 1
             return count
 
-        def is_isolated(up, down, left, right) -> bool:
+        def is_isolated(up, down, left, right, threshold) -> bool:
             gamma_rays = [count_black_in_line(up), count_black_in_line(down),
                           count_black_in_line(left), count_black_in_line(right)]
-            return sum(gamma_rays) <= 4
+            return sum(gamma_rays) <= threshold
 
         done = False
         while not done:
@@ -271,8 +271,8 @@ class PokerImgDetect:
                         # if there's at most one black pixel in the way to the edge
                         black_neighbours_r2 = count_black_neighbours(output_image, r, c, 2)
                         black_neighbours_r4 = count_black_neighbours(output_image, r, c, 4)
-                        if ((is_isolated(up, down, left, right) and black_neighbours_r2 < 6)
-                                or black_neighbours_r4 < 9):
+                        if ((is_isolated(up, down, left, right, 4) and black_neighbours_r2 < 6)
+                                or (is_isolated(up, down, left, right, 10) and black_neighbours_r4 < 9)):
                             # print('Isolated pixel found at ', c, r)
                             # debug_image = output_image.copy()
                             output_image[r, c] = 255
@@ -288,7 +288,16 @@ class PokerImgDetect:
 
 
 
-    def ocr_text_from_image(self, screenshot: np.ndarray, location: tuple[int, int, int, int], rotation_angle=0, psm=7, invert=False, erode=False, brightness=0.0, contrast=0.0, allowed_chars=True, scale=40):
+    def ocr_text_from_image(self, screenshot: np.ndarray,
+                            location: tuple[int, int, int, int],
+                            rotation_angle=0,
+                            psm=7,
+                            invert=False,
+                            erode=False,
+                            brightness=0.0,
+                            contrast=0.0,
+                            allowed_chars=True,
+                            scale=40):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
@@ -297,12 +306,19 @@ class PokerImgDetect:
             image = image.rotate(rotation_angle, resample=Resampling.BICUBIC, fillcolor=(255, 255, 255))
             image = np.array(image)
 
-        if invert:  # white pixels matter more than colored, so decrease brightness of saturated pixels
+        if invert:
+            # white pixels matter more than colored, so decrease brightness of saturated pixels
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             hsv_image = np.float32(image)
 
             # scale the V value adjustments based on S value
             hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (-1 * (hsv_image[:, :, 1] / 255)))
+
+            # scale down dark values
+            hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] < 192, hsv_image[:, :, 2] * (hsv_image[:, :, 2] / 255), hsv_image[:, :, 2])
+
+            # set any value above 192 to 255
+            # hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] > 192, 255, hsv_image[:, :, 2])
 
             # ensure that the HSV values are in the valid range
             hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)

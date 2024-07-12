@@ -320,7 +320,69 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(self, img: MatLike) -> list:
-        return super().table_players()
+        # decrease the brightness of green pixels (the board)
+        less_green_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        green_mask = cv2.inRange(less_green_img, np.array([35, 100, 100]), np.array([70, 255, 255]))
+        factor = 0.4
+        less_green_img[..., 2] = less_green_img[..., 2] * (1 - green_mask / 255 * (1 - factor))
+        # increase the brightness of non-green pixels
+        less_green_img[..., 2] = less_green_img[..., 2] * (1 + green_mask / 255 * factor)
+
+        modified_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
+
+        # crank that bri-con!
+        brightness = 120
+        contrast = 120
+        modified_img = np.int16(modified_img)
+        modified_img = modified_img * (contrast / 127 + 1) - contrast + brightness
+        modified_img = np.clip(modified_img, 0, 255)
+        modified_img = np.uint8(modified_img)
+
+        # find lines using houghlinesp
+        gray = cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY)
+
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+
+        # show
+        cv2.imshow("img", edges)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 90, 150, minLineLength=200, maxLineGap=20)
+        # filter out lines of length more than 230
+        lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 230, lines))
+        # filter out lines whose y1 and y2 arent within 5 pixels
+        lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 5, lines))
+
+        debug_image = modified_img.copy()
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(debug_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.imshow("img", debug_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+        players = []
+        points = []
+        # show lines
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            point1 = (x1, y1)
+            if any([abs(x1 - x) < 20 and abs(y1 - y) < 20 for x, y in points]):
+                continue
+            point2 = (x2, y2)
+            if any([abs(x2 - x) < 20 and abs(y2 - y) < 20 for x, y in points]):
+                continue
+            top = y1 - 20
+            bottom = y1 + 20
+            left = x1
+            right = x2
+            name = self.ocr_text_from_image(modified_img, (left, top, right, bottom), invert=True, brightness=0.3, contrast=3, allowed_chars=False, scale=50)
+            players.append(name)
+            points.append(point1)
+            points.append(point2)
+        return players
 
     def active_players(self, img: MatLike) -> list:
         # decrease the brightness of green pixels (the board)
