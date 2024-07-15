@@ -1,51 +1,64 @@
 import cv2
+import pytesseract
 import numpy as np
 
-# Function to check if a contour is likely a card
-def is_card(contour, min_area=1000, max_area=10000, min_aspect_ratio=1.5, max_aspect_ratio=2.5):
-    # Get the bounding rectangle of the contour
-    x, y, w, h = cv2.boundingRect(contour)
+import os
+
+# Path to Tesseract executable
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Adjust path as necessary
+
+def detect_thin_green_rectangle(image_path):
+    # Load the image
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+      
+    # Use a combination of thresholding and morphological operations for better text detection
+    _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, np.ones((1, 1), np.uint8))
     
-    # Calculate area and aspect ratio
-    area = w * h
-    aspect_ratio = float(w) / h if h != 0 else 0
+    # Find contours
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    print(area)
+    cv2.imshow('Binary', binary)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    show = np.zeros_like(image)
+    cv2.drawContours(show, contours, -1, (0, 255, 0), 2)
+    cv2.imshow('Contours', show)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+    annotated_image = image.copy()
+    names_and_locations = []
     
-    # Check if the contour meets the criteria
-    if min_area < area < max_area and min_aspect_ratio < aspect_ratio < max_aspect_ratio:
-        return True
-    return False
-
-# Step 1: Read the image
-image = cv2.imread('sitting_real.png')
-
-# Step 2: Preprocess the image
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-_, edged = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-# blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-# edged = cv2.Canny(gray, 50, 200)
-
-# Step 3: Find contours
-contours, _ = cv2.findContours(gray.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
-
-# Step 4: Filter and approximate contours
-card_contours = []
-for contour in contours:
-    # Approximate the contour
-    epsilon = 0.02 * cv2.arcLength(contour, True)
-    approx = cv2.approxPolyDP(contour, epsilon, True)
+    # Loop over contours and annotate names
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if 20 < w < 600 and 15 < h < 50:  # Filtering based on the expected size of text boxes
+            roi = gray[y:y+h, x:x+w]
+            cv2.imshow('ROI', roi)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            text = pytesseract.image_to_string(roi, config='--psm 7').strip()
+            if text:
+                names_and_locations.append((text, (x, y, w, h)))
+                cv2.rectangle(annotated_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(annotated_image, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
     
-    # Check if the approximated contour has four points (a rectangle) and meets the card criteria
-    if len(approx) == 4:
-        card_contours.append(approx)
+    return annotated_image, names_and_locations
 
-# Step 5: Draw bounding rectangles
-for contour in card_contours:
-    cv2.drawContours(image, [contour], -1, (0, 255, 0), 3)
+folder = "/home/generel/Documents/code/python/poker/LetsGoGambling/triplejack/new/base/tests"
 
-# Display the result
-cv2.imshow('Original Image', edged)
-cv2.imshow('Detected Cards', image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+for filename in os.listdir(folder):
+    if not filename.endswith('.png') and not filename.endswith('.jpg'):
+        continue
+    path = os.path.join(folder, filename)
+    img, name_and_loc = detect_thin_green_rectangle(path)
+    cv2.imshow('Annotated Image', img)
+    print(f'File: {filename}')
+    for name, loc in name_and_loc:
+        print(f'Name: {name}, Location: {loc}')
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

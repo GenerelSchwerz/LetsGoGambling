@@ -341,14 +341,21 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # find lines using houghlinesp
         gray = cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY)
 
-        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+     # show
+        cv2.imshow("img", gray)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        edges = cv2.Canny(gray, 100, 200, apertureSize=3)
 
         # show
         cv2.imshow("img", edges)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        lines = cv2.HoughLinesP(edges, 1, np.pi / 90, 150, minLineLength=200, maxLineGap=20)
+        lines: list[tuple[int, int, int, int]] = cv2.HoughLinesP(edges, rho=1, theta=np.pi / 90, threshold=50, minLineLength=200, maxLineGap=20)
+    
+
         # filter out lines of length more than 230
         lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 230, lines))
         # filter out lines whose y1 and y2 arent within 5 pixels
@@ -652,12 +659,14 @@ def report_info(detector: TJPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     active_players = detector.active_players(img)
 
+    table_players = detector.table_players(img)
+
 
     filename = ss if isinstance(ss, str) else "current image"
 
     
 
-    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Players: {active_players} | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
+    cv2.imshow(f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Active players: {active_players} | Table players: {table_players} | Took: {int((time.time() - now) * 1000) / 1000} sec", img2)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
