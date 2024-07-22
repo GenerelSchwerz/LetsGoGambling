@@ -1,1 +1,1 @@
-from .imgDetect import TJPokerDetect, report_info
+from .TJPokerDetect import TJPokerDetect, report_info

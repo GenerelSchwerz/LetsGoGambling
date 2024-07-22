@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from event_emitter import EventEmitter
 
-from .imgDetect import TJPokerDetect, TJPopupTypes
+from .TJPokerDetect import TJPokerDetect, TJPopupTypes
 
 from ...abstract.pokerDetection import PokerDetection
 from ...abstract.pokerEventHandler import PokerStages, PokerEvents, PokerEventHandler
@@ -11,20 +11,6 @@ from ...abstract.pokerEventHandler import PokerStages, PokerEvents, PokerEventHa
 from treys import Card
 
 import cv2
-
-"""
-    Abstact class that provides a blueprint for handling events in a poker game.
-
-    Events:
-        - NewHand: Game has started, we've been dealt cards
-            - (cards, players at table)
-        - MyTurn: It's our turn to act
-            - (current bet, pot, players in hand)
-        - PlayerBets: A player acts 
-            - (player, action, amount?)    
-"""
-
-
 
 
 
@@ -158,8 +144,8 @@ class TJEventEmitter(PokerEventHandler):
         # Now, check for our turn.
         # =========================
 
-        call_button = self.detector.call_button(image)
-        if call_button is not None:
+        check_button = self.detector.check_button(image)
+        if check_button is not None:
             our_turn = True
         else:
             fold_button = self.detector.fold_button(image)

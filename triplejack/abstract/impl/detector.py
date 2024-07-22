@@ -35,6 +35,10 @@ class PokerImgDetect:
         self.RAISE_BUTTON_BYTES = None
         self.ALLIN_BUTTON_BYTES = None
 
+        self.__initalized = False
+
+    def is_initialized(self):
+        return self.__initalized    
 
     @staticmethod
     def template_detect(fullimg: cv2.typing.MatLike, wanted: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int,int,int,int], None] = None) -> list[tuple[int, int, int, int]]:
@@ -109,6 +113,8 @@ class PokerImgDetect:
         self.FOLD_BUTTON_BYTES = self.load_image(self.opts.fold_button[0], binary=self.opts.fold_button[1])
         self.RAISE_BUTTON_BYTES = self.load_image(self.opts.raise_button[0], binary=self.opts.raise_button[1])
         self.ALLIN_BUTTON_BYTES = self.load_image(self.opts.allin_button[0], binary=self.opts.allin_button[1])
+
+        self.__initalized = True
 
 
     def sit_buttons(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> list[tuple[int, int, int, int]]:

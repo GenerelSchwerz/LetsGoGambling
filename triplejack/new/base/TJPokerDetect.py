@@ -181,25 +181,25 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         h = screenshot.shape[0]
         return (0, h - h // 5, screenshot.shape[1], h)
 
-    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
 
-    def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> tuple[int, int, int, int]:
+    def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
     
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:
@@ -320,15 +320,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(self, img: MatLike) -> list:
-        # decrease the brightness of green pixels (the board)
-        less_green_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        green_mask = cv2.inRange(less_green_img, np.array([35, 100, 100]), np.array([70, 255, 255]))
-        factor = 0.4
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 - green_mask / 255 * (1 - factor))
-        # increase the brightness of non-green pixels
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 + green_mask / 255 * factor)
-
-        modified_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
+        modified_img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
 
         # crank that bri-con!
         brightness = 120
@@ -341,7 +333,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # find lines using houghlinesp
         gray = cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY)
 
-     # show
+        # show
         cv2.imshow("img", gray)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

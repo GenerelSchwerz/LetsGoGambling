@@ -315,6 +315,7 @@ class NewPokerBot:
 
         # if we're getting a free buy in:
         # Free Rebuy - Get $
+        # ^ TODO? - amelia
 
         # else, just sit
         try:
@@ -327,6 +328,7 @@ class NewPokerBot:
             log.debug("Could not find sit button, probably already sat at table")
             return
 
+# DEBUG FUNCTIONS \/
 
 def show_all_info(bot: NewPokerBot, save=True):
     ss = bot.canvas_screenshot(store=False)
@@ -483,7 +485,7 @@ def main():
         while True:
 
             # input("take screenie ")
-            img = bot.canvas_screenshot(store=False, save_loc=f"triplejack/new/base/tests/midrun/test-{int(time.time().png)}") #
+            img = bot.canvas_screenshot(store=False, save_loc=f"triplejack/new/base/tests/midrun/test{int(time.time())}.png") #
             img = prepare_ss(img)
             # report_info(bot.detector img)
             bot.event_handler.tick(img)
