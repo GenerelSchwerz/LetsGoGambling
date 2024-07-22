@@ -75,7 +75,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def __init__(self) -> None:
         super().__init__(
             opts=PokerImgOpts(
-                folder_path="triplejack/new/base/imgs",
+                folder_path="pokerbot/triplejack/base/imgs",
                 sit_button=("sit.png", False),
                 community_hearts=("heart1.png", True),
                 community_diamonds=("diamond1.png", True),

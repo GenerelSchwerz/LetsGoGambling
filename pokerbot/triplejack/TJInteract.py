@@ -67,10 +67,7 @@ class TJInteract(PokerInteract):
 
     def __init__(self, headless=False, detector: Union[TJPokerDetect, None] = None):
         super().__init__()
-        self.driver = create_tj_driver(headless=headless)
-        self.headless = headless
-
-        self.page = TJPage.get_page(self.driver)
+        
 
         # performance in case multiple instances
         if detector:
@@ -81,6 +78,11 @@ class TJInteract(PokerInteract):
         else:
             self.detector = TJPokerDetect()
             self.detector.load_images()
+
+        self.driver = create_tj_driver(headless=headless)
+        self.headless = headless
+
+        self.page = TJPage.get_page(self.driver)
 
 
     def start(self, username: str, password: str):
@@ -246,7 +248,7 @@ class TJInteract(PokerInteract):
             log.debug("Could not find sit button, probably already sat at table")
             return
 
-    def stop(self):
+    def shutdown(self):
         self.driver.quit()
 
     

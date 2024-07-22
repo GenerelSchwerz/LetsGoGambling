@@ -30,6 +30,7 @@ import time
 
 from .TJInteract import TJInteract, TJPage
 
+from ..abstract.impl.full_client import AClient
 
 
 class TJClient:
@@ -94,7 +95,7 @@ class TJClient:
 
     def start(self):
         if self.interactor is not None:
-            self.interactor.stop()
+            self.interactor.shutdown()
 
         if not self.detector.is_initialized():
             self.detector.load_images()
@@ -116,7 +117,7 @@ class TJClient:
 
     def stop(self):
         if self.interactor is not None:
-            self.interactor.stop()
+            self.interactor.shutdown()
             self.interactor = None
 
         self.event_handler.remove(PokerEvents.OUR_TURN, self.handle_our_turn)
@@ -125,11 +126,45 @@ class TJClient:
         self.event_handler.remove(PokerEvents.TICK, self.handle_tick)
 
 
+def run_ticks(_bot):
+    time_split = 2
+    last_time = time.time()
+    while True:
+
+        _bot.ss = _bot.interactor._ss()
+        _bot.event_handler.tick(_bot.ss)
+        now = time.time()
+        dur = max(0, time_split - (now - last_time))
+        print("Sleeping for", round(dur * 1000) / 1000, "seconds. Been", round((now - last_time) * 1000) / 1000, "seconds taken to calculate since last tick.",round(( dur + now - last_time) * 1000) / 1000, "seconds total")
+        time.sleep(dur)
+        last_time = time.time()
+
 def main():
-    bot = TJClient()
+
+    from ..all.simpleLogic import SimpleDecisions
+
+    detector = TJPokerDetect()
+    detector.load_images()
+
+    event_handler = TJEventEmitter(detector=detector)
+    interactor = TJInteract(headless=False, detector=detector)
+
+    logic = SimpleDecisions()
+
+    bot = AClient(
+        event_handler=event_handler,
+        detector=detector,
+        interactor=interactor,
+        logic=logic,
+        debug=True
+    )
+
+
 
     try:
-        bot.start()
+        bot.start("ForTheChips", "WooHoo123!")
+
+        run_ticks(bot)
     except KeyboardInterrupt:
         print("bot finished")
         bot.stop()
