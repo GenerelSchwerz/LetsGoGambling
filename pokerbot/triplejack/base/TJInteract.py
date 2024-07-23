@@ -1,7 +1,7 @@
 import random
 from typing import Union
-from .driver_creator import create_tj_driver
-from ..abstract.pokerInteract import PokerInteract
+from ..driver_creator import create_tj_driver
+from ...abstract.pokerInteract import PokerInteract
 from selenium import webdriver
 
 from selenium.webdriver.common.by import By
@@ -12,9 +12,9 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from .base.TJPokerDetect import TJPokerDetect
+from .TJPokerDetect import TJPokerDetect
 
-from .utils import prepare_ss
+from ..utils import prepare_ss
 
 import time
 

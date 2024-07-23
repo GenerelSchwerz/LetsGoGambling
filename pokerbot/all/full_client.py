@@ -1,10 +1,10 @@
 import time
 
 
-from ..pokerEventHandler import PokerEventHandler, PokerEvents
-from ..pokerDetection import PokerDetection
-from ..pokerInteract import PokerInteract
-from ..pokerDecisions import PokerDecisionChoice, PokerDecisionMaking
+from ..abstract.pokerEventHandler import PokerEventHandler, PokerEvents
+from ..abstract.pokerDetection import PokerDetection
+from ..abstract.pokerInteract import PokerInteract
+from ..abstract.pokerDecisions import PokerDecisionChoice, PokerDecisionMaking
 
 from treys import Card
 
