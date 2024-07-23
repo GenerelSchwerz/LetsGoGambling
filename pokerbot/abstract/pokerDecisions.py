@@ -37,5 +37,15 @@ class PokerDecisionChoice:
 class PokerDecisionMaking(ABC):
     
     @abstractmethod
-    def on_turn(self, cards: list[Card], facing_bet: int, mid_pot: int, total_pot: int) -> PokerDecisionChoice:
+    def on_turn(self,
+                hole_cards: list[Card],
+                community_cards: list[Card],
+                facing_bet: int,
+                min_bet: int,
+                mid_pot: int,
+                total_pot: int,
+                big_blind: int,
+                stack_size: int,
+                active_opponents: int,
+                ) -> PokerDecisionChoice:
         pass

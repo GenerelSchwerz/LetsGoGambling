@@ -71,9 +71,19 @@ class AClient:
         else:
             print("bet succeeded")
 
-    def on_turn(self, cards: list[Card], facing_bet: int, mid_pot: int, total_pot: int):
+    def on_turn(self,
+                hole_cards: list[Card],
+                community_cards: list[Card],
+                facing_bet: int,
+                min_bet: int,
+                mid_pot: int,
+                total_pot: int,
+                big_blind: int,
+                stack_size: int,
+                active_opponents: int,
+                ):
         start = time.time()
-        result = self.logic.on_turn(cards, facing_bet, mid_pot, total_pot)
+        result = self.logic.on_turn(hole_cards, facing_bet, mid_pot, total_pot)
 
         if result.choice == PokerDecisionChoice.FOLD:
             self.fold()
