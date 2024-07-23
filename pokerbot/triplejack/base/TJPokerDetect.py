@@ -90,13 +90,15 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 bet_button=("betbutton.png", False),
                 fold_button=("foldbutton.png", False),
                 raise_button=("raisebutton.png", False),
-                allin_button=("allinbutton.png", False)
+                allin_button=("allinbutton.png", False),
+                plus_button=("betraisebutton.png", False)
             )
         )
 
         self.POT_BYTES = None
         self.MAIN_POT_BYTES = None
         self.SIDE_POT_BYTES = None
+        self.PLUS_BUTTON_BYTES = None
 
         # popups
         self.CHECK_POPUP_BYTES = None
@@ -131,6 +133,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.POST_POPUP_BYTES = self.load_image("postpopup.png")
         self.BIG_POPUP_BYTES = self.load_image("bigpopup.png")
         self.SMALL_POPUP_BYTES = self.load_image("smallpopup.png")
+        self.PLUS_BUTTON_BYTES = self.load_image("betraisebutton.png")
 
         self.POPUP_BYTES = [
             self.BASE_POPUP_BYTES,
@@ -189,6 +192,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     
     def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
+    
+    def plus_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
+        return self.ident_one_template(screenshot, self.PLUS_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
     def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))

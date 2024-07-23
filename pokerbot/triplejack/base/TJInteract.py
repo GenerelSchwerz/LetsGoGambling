@@ -83,7 +83,8 @@ class TJInteract(PokerInteract):
         self.headless = headless
 
         self.page = TJPage.get_page(self.driver)
-
+        self.small_blind = None
+        self.big_blind = None
 
     def start(self, username: str, password: str):
         self.login(username, password)
@@ -286,15 +287,27 @@ class TJInteract(PokerInteract):
     def bet(self, amt: int, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
         #     return False
-        
-
         if ss is None:
             ss = self._ss()
+
+        clicks = int((self.small_blind(ss) * round((amt - self.detector.min_bet) / self.small_blind(ss))) / (self.big_blind(ss) // 2))
+        if clicks > 20:
+            clicks = int(clicks * (0.9 + (0.2 * random.random())))
+
+        press_plus = self.detector.plus_button(ss, threshold=0.99)
+        if press_plus is None:
+                return False
+
+        for i in range(clicks):
+            self.__canvas_click(*mid(press_plus))
+        
         button = self.detector.bet_button(ss, threshold=0.99)
         if button is None:
-            return False
-        
-
+            button = self.detector.raise_button(ss, threshold=0.99)
+            if button is None:
+                button = self.detector.allin_button(ss, threshold=0.99)
+                if button is None:
+                    return False
 
         self.__canvas_click(*mid(button))
         return True
