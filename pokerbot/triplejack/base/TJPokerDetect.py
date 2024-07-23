@@ -75,7 +75,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def __init__(self) -> None:
         super().__init__(
             opts=PokerImgOpts(
-                folder_path="triplejack/new/base/imgs",
+                folder_path="pokerbot/triplejack/base/imgs",
                 sit_button=("sit.png", False),
                 community_hearts=("heart1.png", True),
                 community_diamonds=("diamond1.png", True),
@@ -181,25 +181,25 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         h = screenshot.shape[0]
         return (0, h - h // 5, screenshot.shape[1], h)
 
-    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.77) -> tuple[int, int, int, int]:
+    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.95) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
 
-    def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> tuple[int, int, int, int]:
+    def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
     
     def find_community_suits(self, ss1: cv2.typing.MatLike, threshold=0.77, subsection: Union[tuple[int, int, int, int], None]=None) -> dict[str, list[tuple[int, int, int, int]]]:

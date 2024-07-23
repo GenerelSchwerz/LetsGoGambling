@@ -7,22 +7,41 @@ from .pokerDetection import PokerDetection
 
 from treys import Card
 
-"""
-    Abstact class that provides a blueprint for handling events in a poker game.
-
-    Events:
-        - NewHand: Game has started, we've been dealt cards
-            - (cards, players at table)
-        - MyTurn: It's our turn to act
-            - (current bet, pot, players in hand)
-        - PlayerBets: A player acts 
-            - (player, action, amount?)
-
-        # TODO: good enough for now
-    
-"""
 
 class PokerEvents:
+    """
+        Abstact class that provides a blueprint for handling events in a poker game.
+
+        Events:
+            - NEW_HAND
+                Args:
+                    - hand: list[Card]
+                    - big_blind: int
+                    - small_blind: int
+
+            - NEW_STAGE
+                Args:
+                    - last_stage: int
+                    - current_stage: int
+            
+            
+            - OUR_TURN
+                Args:
+                    - hole_cards: list[Card]
+                    - community_cards: list[Card]
+                    - facing_bet: int
+                    - mid_pot: int
+                    - total_pot: int
+
+            - TICK
+                Args:
+                    - stage: int
+                    - current_hand: list[Card]
+                    - community_cards: list[Card]
+        
+    """
+
+
     TEST = -1
     NEW_HAND = 0
     NEW_STAGE = 1

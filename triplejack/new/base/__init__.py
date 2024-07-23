@@ -1,1 +1,0 @@
-from .imgDetect import TJPokerDetect, report_info
