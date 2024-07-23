@@ -43,7 +43,6 @@ def main():
 
     try:
         bot.start("ForTheChips", "WooHoo123!")
-
         run_ticks(bot)
     except KeyboardInterrupt:
         print("bot finished")

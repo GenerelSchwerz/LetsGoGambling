@@ -27,7 +27,8 @@ class PokerEvents:
             
             - OUR_TURN
                 Args:
-                    - last_hand: list[Card]
+                    - hole_cards: list[Card]
+                    - community_cards: list[Card]
                     - facing_bet: int
                     - mid_pot: int
                     - total_pot: int
