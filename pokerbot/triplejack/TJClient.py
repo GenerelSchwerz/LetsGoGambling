@@ -7,7 +7,7 @@ from .base import TJPokerDetect, TJInteract, TJEventEmitter
 
 
 def run_ticks(_bot):
-    time_split = 2
+    time_split = 0
     last_time = time.time()
     while True:
 

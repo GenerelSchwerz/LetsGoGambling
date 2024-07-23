@@ -24,31 +24,67 @@ class AClient:
         self.interactor = interactor
         self.logic = logic
 
+
+    # fuck around functions    
+    def fold(self):
+        res = self.interactor.fold()
+        if not res:
+            check = self.interactor.check()
+            if not check:
+                print("fold failed")
+            else:
+                print("fold failed, but check succeeded")
+        else:
+            print("fold succeeded")
+
+    def check(self):
+        res = self.interactor.check()
+        if not res:
+            call = self.interactor.call()
+            if not call:
+                print("check failed")
+            else:
+                print("check failed, but call succeeded")
+        else:
+            print("check succeeded")
+
+    def call(self):
+        res = self.interactor.call()
+        if not res:
+            check = self.interactor.check()
+            if not check:
+                print("call failed")
+            else:
+                print("call failed, but check succeeded")
+        else:
+            print("call succeeded")
     
 
+    def bet(self, amount: int):
+        res = self.interactor.bet(amount)
+        if not res:
+            raise_ = self.interactor.reraise(amount)
+            if not raise_:
+                print("bet failed")
+            else:
+                print("bet failed, but raise succeeded")
+        else:
+            print("bet succeeded")
+
     def on_turn(self, cards: list[Card], facing_bet: int, mid_pot: int, total_pot: int):
-        
+        start = time.time()
         result = self.logic.on_turn(cards, facing_bet, mid_pot, total_pot)
 
         if result.choice == PokerDecisionChoice.FOLD:
-            res = self.interactor.fold()
-            if not res:
-                print("fold failed")
+            self.fold()
         elif result.choice == PokerDecisionChoice.CHECK:
-            res = self.interactor.check()
-            if not res:
-                print("check failed")
-
+            self.check()
         elif result.choice == PokerDecisionChoice.CALL:
-            res = self.interactor.call()
-            if not res:
-                print("call failed")
-
+            self.call()
         elif result.choice == PokerDecisionChoice.BET:
-            res = self.interactor.bet(result.amount)
-            if not res:
-                print("bet failed")
-            
+            self.bet(result.amount)
+
+        print("Time taken for decision:", time.time() - start)
 
     def start(self, username: str, password: str):
         # if self.interactor is not None:

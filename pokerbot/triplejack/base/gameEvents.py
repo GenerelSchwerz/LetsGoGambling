@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import time
 from typing import Any
 from event_emitter import EventEmitter
 
@@ -72,7 +73,7 @@ class TJEventEmitter(PokerEventHandler):
         
 
     def tick(self, image: cv2.typing.MatLike):
-
+        start = time.time()
         try:
             community_cards = self.detector.community_cards(image)
         except (KeyError, ValueError) as e:
@@ -84,27 +85,27 @@ class TJEventEmitter(PokerEventHandler):
         # this is triplejack specific.
 
         if self.last_stage == PokerStages.SHOWDOWN or self.last_stage == PokerStages.RIVER:
-            if (test := len(community_cards)) < 5 and test > 0:
+            if (card_len := len(community_cards)) < 5 and card_len > 0:
                 current_stage = PokerStages.SHOWDOWN # currently displaying winning cards
-            elif test == 0:
+            elif card_len == 0:
                 current_stage = PokerStages.PREFLOP
             else:
                 current_stage = self.last_stage
 
         else:
-            if len(community_cards) == 0:
+            if (card_len := len(community_cards)) == 0:
                 current_stage = PokerStages.PREFLOP
         
-            elif len(community_cards) <= 3: # transitioning to flop
+            elif card_len <= 3: # transitioning to flop
                 current_stage = PokerStages.FLOP
 
-            elif len(community_cards) == 4:
+            elif card_len == 4:
                 if self.last_stage == PokerStages.RIVER:
                     current_stage = PokerStages.PREFLOP # new hand
                 else:
                     current_stage = PokerStages.TURN
 
-            elif len(community_cards) == 5:
+            elif card_len == 5:
                 current_stage = PokerStages.RIVER
 
             else:
@@ -134,7 +135,7 @@ class TJEventEmitter(PokerEventHandler):
                 
                 self.__emit_new_hand(image, current_hand)
             
-        self.last_stage = current_stage
+
 
         if current_hand is None:
             current_hand = self.last_hand
@@ -143,12 +144,21 @@ class TJEventEmitter(PokerEventHandler):
         # =========================
         # Now, check for our turn.
         # =========================
+            
 
-        check_button = self.detector.check_button(image)
+        if len(current_hand) == 0:
+            # we're not in a hand, so we're not going to check for our turn.
+            self.our_turn = False
+            self.last_stage = current_stage
+            self.emit(PokerEvents.TICK, current_stage, current_hand, community_cards)
+            return
+
+
+        check_button = self.detector.check_button(image, threshold=0.99)
         if check_button is not None:
             our_turn = True
         else:
-            fold_button = self.detector.fold_button(image)
+            fold_button = self.detector.fold_button(image, threshold=0.99)
             if fold_button is not None:
                 our_turn = True
                     
@@ -157,14 +167,15 @@ class TJEventEmitter(PokerEventHandler):
 
         if our_turn != self.our_turn and our_turn:
             self.__emit_our_turn(image)
+
+        elif our_turn == self.our_turn and our_turn:
+            # check if stage has changed
+            if current_stage > self.last_stage:
+                self.__emit_our_turn(image)
         
         self.our_turn = our_turn
-        
-        
+        self.last_stage = current_stage
         self.emit(PokerEvents.TICK, current_stage, current_hand, community_cards)
-
-
-
         
 
 

@@ -284,33 +284,36 @@ class TJInteract(PokerInteract):
 
 
     def bet(self, amt: int, ss=None) -> bool:
-        if self.page != TJPage.TABLE:
-            return False
+        # if self.page != TJPage.TABLE:
+        #     return False
         
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.bet_button(ss)
+        button = self.detector.bet_button(ss, threshold=0.99)
         if button is None:
             return False
         
 
 
-        pass
+        self.__canvas_click(*mid(button))
+        return True
+    
 
     def reraise(self, amt: int, ss=None) -> bool:
-        if self.page != TJPage.TABLE:
-            return False
+        # if self.page != TJPage.TABLE:
+        #     return False
         
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.raise_button(ss)
+        button = self.detector.raise_button(ss, threshold=0.99)
 
         if button is None:
             return False
 
-        pass
+        self.__canvas_click(*mid(button))
+        return True
 
     def check(self, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
@@ -319,7 +322,7 @@ class TJInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        button = self.detector.check_button(ss)
+        button = self.detector.check_button(ss, threshold=0.99)
 
         if button is None:
             return False
@@ -334,13 +337,12 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.fold_button(ss)
+        button = self.detector.fold_button(ss, threshold=0.99)
 
         if button is None:
             return False
         
         self.__canvas_click(*mid(button))
-
         return True
 
     def call(self, ss=None) -> bool:
@@ -352,14 +354,12 @@ class TJInteract(PokerInteract):
             ss = self._ss()
 
 
-        button = self.detector.call_button(ss)
+        button = self.detector.call_button(ss, threshold=0.99)
 
         if button is None:
             return False
         
         self.__canvas_click(*mid(button))
-
-
         return True
 
     def sit(self) -> bool:
