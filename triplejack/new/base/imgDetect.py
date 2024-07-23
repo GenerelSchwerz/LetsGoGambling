@@ -320,75 +320,114 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(self, img: MatLike) -> list:
-        # decrease the brightness of green pixels (the board)
-        less_green_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        green_mask = cv2.inRange(less_green_img, np.array([35, 100, 100]), np.array([70, 255, 255]))
-        factor = 0.4
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 - green_mask / 255 * (1 - factor))
-        # increase the brightness of non-green pixels
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 + green_mask / 255 * factor)
+        # convert from BGR to RGB
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        filter_colors = np.array([
+            [68, 68, 68],  # inactive player gray
+            [48, 192, 86],  # active player green
+            [28, 43, 53],  # action player gray
+            # [67, 204, 112]  # self player halo
+        ])
 
-        modified_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
+        mask = np.zeros_like(rgb_img[:, :, 0], dtype=bool)
 
-        # crank that bri-con!
-        brightness = 120
-        contrast = 120
-        modified_img = np.int16(modified_img)
-        modified_img = modified_img * (contrast / 127 + 1) - contrast + brightness
-        modified_img = np.clip(modified_img, 0, 255)
-        modified_img = np.uint8(modified_img)
+        for color in filter_colors:
+            color_mask = np.all(rgb_img == color, axis=-1)
+            mask = mask | color_mask
 
-        # find lines using houghlinesp
-        gray = cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY)
+        filtered_image = np.zeros_like(rgb_img)
+        filtered_image[mask] = rgb_img[mask]
+        modified_img = filtered_image
 
-     # show
-        cv2.imshow("img", gray)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        gray = cv2.cvtColor(modified_img, cv2.COLOR_RGB2GRAY)
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
 
-        edges = cv2.Canny(gray, 100, 200, apertureSize=3)
+        rows, cols = binary.shape
 
-        # show
-        cv2.imshow("img", edges)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        for row in range(rows):
+            white_pixel_count = np.sum(binary[row] == 255)
 
-        lines: list[tuple[int, int, int, int]] = cv2.HoughLinesP(edges, rho=1, theta=np.pi / 90, threshold=50, minLineLength=200, maxLineGap=20)
-    
+            if white_pixel_count < 75:
+                binary[row][binary[row] == 255] = 0
 
-        # filter out lines of length more than 230
-        lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 230, lines))
+        # edges = cv2.Canny(binary, 100, 200, apertureSize=3)
+        # show binary
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=100, minLineLength=200, maxLineGap=20)
+
+        # filter out lines of length more than 260
+        lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 260, lines))
         # filter out lines whose y1 and y2 arent within 5 pixels
         lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 5, lines))
 
-        debug_image = modified_img.copy()
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            cv2.line(debug_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.imshow("img", debug_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # debug_image = modified_img.copy()
+        # for line in lines:
+        #     x1, y1, x2, y2 = line[0]
+        #     cv2.line(debug_image, (x1, y1), (x2, y2), (64, 255, 64), 1)
+        # cv2.imshow("img", debug_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
+        def distance(p1, p2):
+            return math.sqrt(((p1[0] - p2[0]) ** 2) + ((p1[1] - p2[1]) ** 2))
+
+        def merge_lines(line1, line2):
+            x1 = (line1[0] + line2[0]) / 2
+            y1 = (line1[1] + line2[1]) / 2
+            x2 = (line1[2] + line2[2]) / 2
+            y2 = (line1[3] + line2[3]) / 2
+            return [x1, y1, x2, y2]
+
+        def clean_lines(lines, threshold, merge=False):
+            i = 0
+            while i < len(lines):
+                j = i + 1
+                while j < len(lines):
+                    line1 = lines[i][0]
+                    line2 = lines[j][0]
+                    distances = [distance(line1[:2], line2[:2]), distance(line1[2:], line2[2:]),
+                                 distance(line1[:2], line2[2:]), distance(line1[2:], line2[:2])]
+                    if sum([d < threshold for d in distances]) > 1:
+                        if merge:
+                            merged_line = merge_lines(line1, line2)
+                            lines[i][0] = merged_line
+                        lines.pop(j)
+                        j = i + 1
+                        continue
+                    j += 1
+                i += 1
+
+        upper_threshold = 35
+        lower_threshold = 5
+        clean_lines(lines, lower_threshold)
+        clean_lines(lines, upper_threshold, merge=True)
+
+        # debug_image = modified_img.copy()
+        # for line in lines:
+        #     x1, y1, x2, y2 = line[0]
+        #     cv2.line(debug_image, (x1, y1), (x2, y2), (64, 255, 64), 1)
+        # cv2.imshow("img", debug_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        filter_color = [68, 68, 68]
+        mask = cv2.inRange(rgb_img, np.array(filter_color) - 10, np.array(filter_color) + 10)
+        rgb_img[mask != 0] = [0, 0, 0]
+        output_image = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
 
         players = []
-        points = []
         # show lines
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            point1 = (x1, y1)
-            if any([abs(x1 - x) < 20 and abs(y1 - y) < 20 for x, y in points]):
-                continue
-            point2 = (x2, y2)
-            if any([abs(x2 - x) < 20 and abs(y2 - y) < 20 for x, y in points]):
-                continue
             top = y1 - 20
             bottom = y1 + 20
             left = x1
             right = x2
-            name = self.ocr_text_from_image(modified_img, (left, top, right, bottom), invert=True, brightness=0.3, contrast=3, allowed_chars=False, scale=50)
+            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=0.5, contrast=2, allowed_chars=False, scale=50)
             players.append(name)
-            points.append(point1)
-            points.append(point2)
         return players
 
     def active_players(self, img: MatLike) -> list:

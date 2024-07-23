@@ -312,7 +312,8 @@ class PokerImgDetect:
             hsv_image = np.float32(image)
 
             # scale the V value adjustments based on S value
-            hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (-1 * (hsv_image[:, :, 1] / 255)))
+            hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (-1.5 * (hsv_image[:, :, 1] / 255)))
+            hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
 
             # scale down dark values
             hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] < 192, hsv_image[:, :, 2] * (hsv_image[:, :, 2] / 255), hsv_image[:, :, 2])
@@ -340,8 +341,9 @@ class PokerImgDetect:
 
         center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
         distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
-        if np.sum(distances <= 20) / (image.shape[0] * image.shape[1]) > 0.93:
-            print('Image is mostly the same color as the center pixel, returning empty string')
+        similarity_factor = np.sum(distances <= 7) / (image.shape[0] * image.shape[1])
+        if similarity_factor > 0.94:
+            print(f'Image is mostly the same color as center pixel, returning empty string {similarity_factor}')
             return ''
 
         # TODO this is occasionally failing. I don't know why
