@@ -266,7 +266,7 @@ class TJInteract(PokerInteract):
         chain.move_to_element_with_offset(body, -bW // 2 + x + cX, -bH // 2 + y + cY)
         chain.click()
         for i in range(amt - 1):
-            chain.pause(0.1)
+            chain.pause(0.1) 
             chain.click()
         chain.perform()
 
