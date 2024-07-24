@@ -421,18 +421,14 @@ class AlgoDecisions(PokerDecisionMaking):
 
         # calculating equity, with two special cases where equity should be 100% to save calculation
 
-        # TODO: fix this code -Gen
         if current_street == PokerStages.RIVER:
-            _, board_rank = evaluate_hand([], community_cards)
-        else:
-            board_rank = PokerHands.HIGH_CARD
-
-        if (our_hand_strength == PokerHands.FULL_HOUSE
-                and board_rank != PokerHands.TWO_PAIR
-                and board_rank != PokerHands.THREE_OF_A_KIND
-                and board_rank != PokerHands.FULL_HOUSE):
-            log.info("Full House when no 2pair, 3kind, fh on board, equity is 100%")
-            equity = 1
+            if our_hand_strength == PokerHands.FULL_HOUSE:
+                _, board_rank = evaluate_hand([], community_cards)
+                if (board_rank != PokerHands.TWO_PAIR
+                        and board_rank != PokerHands.THREE_OF_A_KIND
+                        and board_rank != PokerHands.FULL_HOUSE):
+                    log.info("River, fh when no 2pair, 3kind, fh on board, equity is 100%")
+                    equity = 1
         elif our_hand_strength < PokerHands.FULL_HOUSE:
             log.info("4 of a kind or better, equity is 100%")
             equity = 1
