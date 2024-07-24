@@ -29,6 +29,15 @@ def calculate_equity(hole_cards: list[Card],
                      # num successful simulations to be satisfied & return before simulation_time is up
                      threshold_hand_strength=PokerHands.HIGH_CARD,  # min strength of hands opponents will have at river
                      threshold_players=1,  # min players we assume satisfy threshold_hand_strength
+
+                     # for example, with default arguments, we calculate our equity
+                     # (the chance that our hand beats or chops with everyone else's hands)
+                     # assuming that at least ONE player has HIGH_CARD or better by the river
+                     # (or right now, if it's the river already)
+
+                     # if threshold_hand_strength were PokerHands.THREE_OF_A_KIND and threshold_players was 2,
+                     # then we calculate the chance that we beat/chop with everyone,
+                     # assuming that AT LEAST two players have AT LEAST three of a kind
                      ) -> float:
     evaluator = Evaluator()
     wins = 0
@@ -103,6 +112,14 @@ def calculate_equity_preflop(hole_cards: list[Card],
                              # num successful simulations to be satisfied & return before simulation_time is up
                              threshold_percentile=60,  # percentile of hands opponents are playing
                              threshold_players=1,  # min players we assume satisfy threshold_percentile
+
+                             # for example, with default arguments, we calculate our equity
+                             # (the chance that our hand beats or chops with everyone's hands after a random run-out)
+                             # assuming at least ONE player has hole cards in the top 60th percentile
+
+                             # if threshold_hand_strength were 20 and threshold_players was 2,
+                             # then we calculate the chance that we beat/chop with everyone after a random run-out,
+                             # assuming AT LEAST two players have hands in the top 20th percentile
                              ) -> float:
     evaluator = Evaluator()
     wins = 0
@@ -201,7 +218,7 @@ class AlgoDecisions(PokerDecisionMaking):
             if game_stage == 3:
                 # if we're all the way at the river and seeing a hefty bet,
                 # assume decent but not amazing hand
-                threshold = (PokerHands.PAIR + PokerHands.TWO_PAIR) / 2
+                threshold = PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR)
 
         if hand_strength <= PokerHands.TWO_PAIR:  # if we have a good hand, don't get too overzealous
             if threshold == PokerHands.HIGH_CARD:
@@ -209,18 +226,18 @@ class AlgoDecisions(PokerDecisionMaking):
 
         elif threshold >= PokerHands.PAIR and self.was_reraised and current_bet > big_blind * 2:
             log.info("Was reraised, assume 2 pair or better 50% of the time")
-            threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
+            threshold = min(PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR), threshold)
 
         elif (game_stage == PokerStages.RIVER
               and middle_pot_value >= 50 * big_blind
               or current_bet >= 50 * big_blind):
             log.info("River, either >= 50 BB pot or >= 50 BB bet, assume 2 pair or better 50% of the time")
-            threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
+            threshold = min(PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR), threshold)
 
         # idk why this is here i think it's because this is the best approximation i have for assuming top pair?
         elif current_bet >= 0.5 * middle_pot_value:
             log.info("Bet over half pot, assume 2 pair or better 50% of the time")
-            threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
+            threshold = min(PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR), threshold)
 
         if threshold > self.min_threshold:
             log.info(
@@ -469,7 +486,7 @@ class AlgoDecisions(PokerDecisionMaking):
                                               threshold_hand_strength=PokerHands.merge(PokerHands.PAIR,
                                                                                        PokerHands.TWO_PAIR),
                                               threshold_players=1)
-            log.info(f"River, >=50BB pot, <=2 ops, calculate betting equity w threshold 7.5 ({betting_equity})")
+            log.info(f"River, >=50BB pot, <=2 ops, calculate betting equity assuming two pair/pair 50/50 split ({betting_equity})")
             # betting_equity = betting_equity / 2
             # ^ this was in original code but seems rather timid?
         elif equity < 0.7 and self.current_street == PokerStages.RIVER and total_pot >= 50 * big_blind:

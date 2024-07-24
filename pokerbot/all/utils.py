@@ -33,7 +33,7 @@ class PokerHands:
         """
         Merge two hand strengths into one.
         """
-        return low + high / 2
+        return (low + high) / 2
 
 
 perc_ranges_multiple_ops = {
