@@ -163,11 +163,11 @@ class TJEventEmitter(PokerEventHandler):
             return
 
 
-        check_button = self.detector.check_button(image, threshold=0.99)
+        check_button = self.detector.check_button(image, threshold=0.95)
         if check_button is not None:
             our_turn = True
         else:
-            fold_button = self.detector.fold_button(image, threshold=0.99)
+            fold_button = self.detector.fold_button(image, threshold=0.95)
             if fold_button is not None:
                 our_turn = True
                     
