@@ -28,6 +28,14 @@ class PokerHands:
     STRAIGHT_FLUSH = 1
     ROYAL_FLUSH = 0
 
+    
+    @staticmethod
+    def merge(low: int, high: int) -> float:
+        """
+        Merge two hand strengths into one.
+        """
+        return low + high / 2
+
 
 perc_ranges_multiple_ops = {
     60: Range("22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 94s+, 84s+, 74s+, 64s+, 54s, A2o+, K3o+, Q5o+, J7o+, T7o+, 97o+"),
@@ -51,10 +59,10 @@ def ceil_half(num):
     return -(num // -2)
 
 
-def fold_or_check(current_bet):
+def fold_or_check(current_bet) -> PokerDecisionChoice:
     if current_bet == 0:
-        return PokerDecisionChoice.CHECK
-    return PokerDecisionChoice.FOLD
+        return PokerDecisionChoice.check()
+    return PokerDecisionChoice.fold()
 
 
 def bet(ideal_bet, stack_size):

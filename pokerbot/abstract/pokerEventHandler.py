@@ -24,14 +24,16 @@ class PokerEvents:
                     - last_stage: int
                     - current_stage: int
             
-            
             - OUR_TURN
                 Args:
                     - hole_cards: list[Card]
                     - community_cards: list[Card]
                     - facing_bet: int
+                    - min_bet: int
                     - mid_pot: int
                     - total_pot: int
+                    - stack_size: int
+                    - active_opponents: int
 
             - TICK
                 Args:

@@ -4,10 +4,11 @@ import time
 
 from ..all.full_client import AClient
 from .base import TJPokerDetect, TJInteract, TJEventEmitter
+from ..all.algoLogic import AlgoDecisions
 
 
 def run_ticks(_bot):
-    time_split = 0
+    time_split = 2
     last_time = time.time()
     while True:
 
@@ -29,7 +30,7 @@ def main():
     event_handler = TJEventEmitter(detector=detector)
     interactor = TJInteract(headless=False, detector=detector)
 
-    logic = SimpleDecisions()
+    logic = AlgoDecisions()
 
     bot = AClient(
         event_handler=event_handler,

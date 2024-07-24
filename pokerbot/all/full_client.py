@@ -8,6 +8,7 @@ from ..abstract.pokerDecisions import PokerDecisionChoice, PokerDecisionMaking
 
 from treys import Card
 
+
 class AClient:
 
     currently_running = 0
@@ -16,7 +17,14 @@ class AClient:
     This class is the main class for the poker bot.
     """
 
-    def __init__(self, event_handler: PokerEventHandler, detector: PokerDetection, interactor: PokerInteract, logic: PokerDecisionMaking, debug=False):
+    def __init__(
+        self,
+        event_handler: PokerEventHandler,
+        detector: PokerDetection,
+        interactor: PokerInteract,
+        logic: PokerDecisionMaking,
+        debug=False,
+    ):
         self.debug = debug
 
         self.detector = detector
@@ -24,8 +32,10 @@ class AClient:
         self.interactor = interactor
         self.logic = logic
 
+        self.cur_hand_bb = 0
+        self.cur_hand_sb = 0
 
-    # fuck around functions    
+    # fuck around functions
     def fold(self):
         res = self.interactor.fold()
         if not res:
@@ -58,10 +68,9 @@ class AClient:
                 print("call failed, but check succeeded")
         else:
             print("call succeeded")
-    
 
     def bet(self, amount: int):
-        res = self.interactor.bet(amount)
+        res = self.interactor.bet(amount, self.cur_hand_sb, self.cur_hand_bb)
         if not res:
             raise_ = self.interactor.reraise(amount)
             if not raise_:
@@ -71,19 +80,35 @@ class AClient:
         else:
             print("bet succeeded")
 
-    def on_turn(self,
-                hole_cards: list[Card],
-                community_cards: list[Card],
-                facing_bet: int,
-                min_bet: int,
-                mid_pot: int,
-                total_pot: int,
-                big_blind: int,
-                stack_size: int,
-                active_opponents: int,
-                ):
+    def on_new_hand(self, hole_cards: list[Card], bb: int, sb: int):
+        print("New hand", Card.ints_to_pretty_str(hole_cards), sb, bb)
+        self.cur_hand_bb = bb
+        self.cur_hand_sb = sb
+
+    def on_turn(
+        self,
+        hole_cards: list[Card],
+        community_cards: list[Card],
+        facing_bet: int,
+        min_bet: int,
+        mid_pot: int,
+        total_pot: int,
+        stack_size: int,
+        active_opponents: int,
+    ):
+        print("Our turn")
         start = time.time()
-        result = self.logic.on_turn(hole_cards, facing_bet, mid_pot, total_pot)
+        result = self.logic.on_turn(
+            hole_cards,
+            community_cards,
+            facing_bet,
+            min_bet,
+            mid_pot,
+            total_pot,
+            self.cur_hand_bb,
+            stack_size,
+            active_opponents,
+        )
 
         if result.choice == PokerDecisionChoice.FOLD:
             self.fold()
@@ -106,8 +131,7 @@ class AClient:
         self.interactor.start(username, password)
 
         self.event_handler.on(PokerEvents.OUR_TURN, self.on_turn)
-
-
+        self.event_handler.on(PokerEvents.NEW_HAND, self.on_new_hand)
 
     def stop(self):
         if self.interactor is not None:
@@ -115,6 +139,7 @@ class AClient:
             self.interactor = None
 
         self.event_handler.remove(PokerEvents.OUR_TURN, self.on_turn)
+        self.event_handler.remove(PokerEvents.NEW_HAND, self.on_new_hand)
 
 
 def main():

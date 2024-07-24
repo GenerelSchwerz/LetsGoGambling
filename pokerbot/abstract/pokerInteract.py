@@ -11,7 +11,7 @@ class PokerInteract(ABC):
         pass
 
     @abstractmethod
-    def bet(self, amt: int) -> bool:
+    def bet(self, amt: int, sb: int, bb: int) -> bool:
         pass
 
     # TODO: Perhaps merge into bet (with a flag for reraise)

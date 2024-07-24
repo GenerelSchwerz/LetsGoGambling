@@ -67,7 +67,16 @@ class TJEventEmitter(PokerEventHandler):
             total_pot = sum(current_bets) + mid_pot
             facing_bet = max(current_bets)
 
-        self.emit(PokerEvents.OUR_TURN, hole_cards, community_cards, facing_bet, mid_pot, total_pot)
+        self.emit(PokerEvents.OUR_TURN,
+                    hole_cards,
+                    community_cards,
+                    facing_bet,
+                    self.detector.min_bet(img),
+                    mid_pot,
+                    total_pot,
+                    self.detector.stack_size(img),
+                    len(self.detector.active_players(img)) - 1 # exclude us
+                  )
         # self.our_turn = True # slightly redundant code as this should only ever be called if this is supposed to be true.
         
         
@@ -166,12 +175,12 @@ class TJEventEmitter(PokerEventHandler):
                 our_turn = False
 
         if our_turn != self.our_turn and our_turn:
-            self.__emit_our_turn(image)
+            self.__emit_our_turn(image, current_hand, community_cards)
 
         elif our_turn == self.our_turn and our_turn:
             # check if stage has changed
             if current_stage > self.last_stage:
-                self.__emit_our_turn(image, )
+                self.__emit_our_turn(image, current_hand, community_cards)
         
         self.our_turn = our_turn
         self.last_stage = current_stage

@@ -91,14 +91,12 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 fold_button=("foldbutton.png", False),
                 raise_button=("raisebutton.png", False),
                 allin_button=("allinbutton.png", False),
-                plus_button=("betraisebutton.png", False)
             )
         )
 
         self.POT_BYTES = None
         self.MAIN_POT_BYTES = None
         self.SIDE_POT_BYTES = None
-        self.PLUS_BUTTON_BYTES = None
 
         # popups
         self.CHECK_POPUP_BYTES = None
@@ -110,6 +108,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.BASE_POPUP_BYTES = None
         self.BIG_POPUP_BYTES = None
         self.SMALL_POPUP_BYTES = None
+
+        self.PLUS_BUTTON_BYTES = None
 
         self.POPUP_BYTES = []
         self.__POPUP_DICT = {}

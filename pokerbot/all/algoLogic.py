@@ -9,7 +9,7 @@ from ..abstract.pokerEventHandler import PokerStages
 from ..all.utils import *
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='[%(asctime)s|%(name)s]: %(message)s',
     datefmt='%m-%d %H:%M:%S'
 )
@@ -90,7 +90,7 @@ def calculate_equity(hole_cards: list[Card],
                     (eval_result >= our_rank)
                     )[1] for i in range(active_opponents)):
                 wins += 1
-    log.debug(f"Successful simulations: {successful_simulations} ({time.time() - start_time}s)")
+    log.info(f"Successful simulations: {successful_simulations} ({time.time() - start_time}s)")
     # watch for div by 0
     return wins / successful_simulations if successful_simulations != 0 else 0
 
@@ -142,7 +142,7 @@ def calculate_equity_preflop(hole_cards: list[Card],
                     (eval_result >= our_rank)
                     )[1] for i in range(active_opponents)):
                 wins += 1
-    log.debug(f"Successful simulations: {successful_simulations} ({time.time() - start_time}s)")
+    log.info(f"Successful simulations: {successful_simulations} ({time.time() - start_time}s)")
     # watch for div by 0
     return wins / successful_simulations if successful_simulations != 0 else 0
 
@@ -154,7 +154,7 @@ class AlgoDecisions(PokerDecisionMaking):
         self.currently_bluffing = False
         self.currently_betting = False
         self.was_reraised = False
-        self.min_threshold = 9
+        self.min_threshold = PokerHands.HIGH_CARD
         self.hole_card_1 = None
         self.hole_card_2 = None
         self.current_street = PokerStages.UNKNOWN
@@ -172,31 +172,31 @@ class AlgoDecisions(PokerDecisionMaking):
                       hand_strength):
         # odds of winning if the winner were randomly decided among all players
         lotto_chance = 1 / (1 + num_opponents)
-        log.debug(f"Chance of winning if randomly decided: {lotto_chance}")
+        log.info(f"Chance of winning if randomly decided: {lotto_chance}")
 
         flush_draw = has_flush_draw(board_cards)
         if flush_draw:
             # without all this, the bot will wayyyyy overvalue low flushes like 4 high
-            log.debug(">=4 of one suit on board! Uh oh!")
+            log.info(">=4 of one suit on board! Uh oh!")
             if current_bet > 0:
                 threshold = PokerHands.THREE_OF_A_KIND
                 if self.was_reraised:
-                    log.debug("We've been reraised, assume flush")
+                    log.info("We've been reraised, assume flush")
                     threshold = PokerHands.STRAIGHT  # eh they could also have a straight
             else:
                 threshold = PokerHands.TWO_PAIR
 
         elif current_bet >= middle_pot_value and game_stage > PokerStages.PREFLOP:
-            log.debug("Bet is >=pot postflop, assume someone has 2 pair or better")
+            log.info("Bet is >=pot postflop, assume someone has 2 pair or better")
             threshold = PokerHands.TWO_PAIR
         elif pot_odds < lotto_chance:
-            log.debug("Pot odds are less than random chance")
+            log.info("Pot odds are less than random chance")
             threshold = PokerHands.PAIR
             if game_stage == PokerStages.FLOP and current_bet <= big_blind:
                 threshold = PokerHands.HIGH_CARD
-                log.debug("I know y'all did not hit this board...")
+                log.info("I know y'all did not hit this board...")
         else:
-            log.debug("Pot odds greater than random chance")
+            log.info("Pot odds greater than random chance")
             threshold = PokerHands.PAIR
             if game_stage == 3:
                 # if we're all the way at the river and seeing a hefty bet,
@@ -207,23 +207,23 @@ class AlgoDecisions(PokerDecisionMaking):
             if threshold == PokerHands.HIGH_CARD:
                 threshold = PokerHands.PAIR
 
-        elif threshold >= 8 and self.was_reraised and current_bet > big_blind * 2:
-            log.debug("Was reraised, assume 2 pair or better 50% of the time")
+        elif threshold >= PokerHands.PAIR and self.was_reraised and current_bet > big_blind * 2:
+            log.info("Was reraised, assume 2 pair or better 50% of the time")
             threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
 
         elif (game_stage == PokerStages.RIVER
               and middle_pot_value >= 50 * big_blind
               or current_bet >= 50 * big_blind):
-            log.debug("River, either >= 50 BB pot or >= 50 BB bet, assume 2 pair or better 50% of the time")
+            log.info("River, either >= 50 BB pot or >= 50 BB bet, assume 2 pair or better 50% of the time")
             threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
 
         # idk why this is here i think it's because this is the best approximation i have for assuming top pair?
         elif current_bet >= 0.5 * middle_pot_value:
-            log.debug("Bet over half pot, assume 2 pair or better 50% of the time")
+            log.info("Bet over half pot, assume 2 pair or better 50% of the time")
             threshold = min((PokerHands.PAIR + PokerHands.TWO_PAIR) / 2, threshold)
 
         if threshold > self.min_threshold:
-            log.debug(
+            log.info(
                 f"Threshold ({threshold}) is higher than min threshold ({self.min_threshold}), setting it to that")
         threshold = min(self.min_threshold, threshold)
 
@@ -262,16 +262,16 @@ class AlgoDecisions(PokerDecisionMaking):
             percentile = 20
         if bb_stack < 15:
             percentile = 10
-        log.debug(f"Playing the best {percentile}% of hands")
+        log.info(f"Playing the best {percentile}% of hands")
         if is_in_percentile(percentile, hole_cards, active_opponents > 1):
             play_this_hand = True
         else:
             if random.random() < 0.5 and bb_stack > 50:
                 if is_in_percentile(60, hole_cards, active_opponents > 1):
                     play_this_hand = True
-                    log.debug("50% chance to play hand outside normal percentile hit")
+                    log.info("50% chance to play hand outside normal percentile hit")
         if not play_this_hand:
-            log.debug("Folding hand outside percentile")
+            log.info("Folding hand outside percentile")
             return fold_or_check(facing_bet)
 
         if facing_bet <= big_blind:  # if no one has raised pre yet, we're gonna raise, bc that's good poker mmkay?
@@ -280,10 +280,10 @@ class AlgoDecisions(PokerDecisionMaking):
                 raise_factor = 6
                 # TRIPLEJACK SPECIFIC
                 if random.random() < 0.2:
-                    log.debug("Shoving because 20% chance hit and top 5% hand")
+                    log.info("Shoving because 20% chance hit and top 5% hand")
                     raise_factor = stack_size / big_blind
                 if active_opponents >= 5 and random.random() < 0.3:
-                    log.debug("Shoving because 50% chance, >=5 ops, and top 5% hand")
+                    log.info("Shoving because 50% chance, >=5 ops, and top 5% hand")
                     raise_factor = stack_size / big_blind
                 # / TRIPLEJACK SPECIFIC
             elif is_in_percentile(10, hole_cards, active_opponents > 1):
@@ -292,10 +292,10 @@ class AlgoDecisions(PokerDecisionMaking):
                 raise_factor = 3
             ideal_bet = raise_factor * big_blind
             if ideal_bet >= min_bet:
-                log.debug(f"Preflop raise to {ideal_bet}")
+                log.info(f"Preflop raise to {ideal_bet}")
                 return bet(ideal_bet, stack_size)
             else:
-                log.debug("Preflop call/check")
+                log.info("Preflop call/check")
                 return PokerDecisionChoice.call()
         # rest of preflop logic
         if facing_bet > 10 * big_blind:
@@ -310,12 +310,12 @@ class AlgoDecisions(PokerDecisionMaking):
             equity = calculate_equity_preflop(hole_cards, community_cards, active_opponents,
                                               threshold_percentile=60,
                                               threshold_players=2 if active_opponents < 4 else 3)
-        log.debug(f"Preflop equity: {equity}")
+        log.info(f"Preflop equity: {equity}")
         if equity < pot_odds:
-            log.debug(f"Preflop equity less than pot odds, folding ({equity} < {pot_odds})")
+            log.info(f"Preflop equity less than pot odds, folding ({equity} < {pot_odds})")
             return fold_or_check(facing_bet)
         else:
-            log.debug(f"Preflop equity greater than pot odds, calling ({equity} > {pot_odds})")
+            log.info(f"Preflop equity greater than pot odds, calling ({equity} > {pot_odds})")
             return PokerDecisionChoice.call()
 
     def on_turn(self,
@@ -329,6 +329,8 @@ class AlgoDecisions(PokerDecisionMaking):
                 stack_size: int,
                 active_opponents: int,
                 ) -> PokerDecisionChoice:
+        
+        print("Our turn!", Card.ints_to_pretty_str(hole_cards), Card.ints_to_pretty_str(community_cards))
 
         current_street = get_street(community_cards)
 
@@ -336,8 +338,8 @@ class AlgoDecisions(PokerDecisionMaking):
 
         if (self.current_street > current_street
                 or (self.hole_card_1 != hole_cards[0] or self.hole_card_2 != hole_cards[1])):
-            log.debug("New hand detected")
-            self.min_threshold = 9
+            log.info("New hand detected")
+            self.min_threshold = PokerHands.HIGH_CARD
             self.currently_bluffing = False
             self.currently_betting = False
 
@@ -365,7 +367,7 @@ class AlgoDecisions(PokerDecisionMaking):
             approximate_pot = math.floor(((active_opponents + 1) * facing_bet) /
                                          (1.5 if facing_bet != big_blind else 1))
             if total_pot < approximate_pot:
-                log.debug(f"Assuming some callers behind, pot value ({total_pot}) "
+                log.info(f"Assuming some callers behind, pot value ({total_pot}) "
                           f"less than {approximate_pot}, setting it to that")
                 total_pot = approximate_pot
 
@@ -373,17 +375,18 @@ class AlgoDecisions(PokerDecisionMaking):
 
         going_all_in = facing_bet >= stack_size
         pot_odds = facing_bet / (total_pot + facing_bet)
-        log.debug(f"Pot odds: {pot_odds}")
+        log.info(f"Pot odds: {pot_odds}")
 
         # This is triplejack specific. People raise pre with shit hands. This would not fly on coinpoker.
         # TRIPLEJACK SPECIFIC
         if self.current_street == PokerStages.PREFLOP and facing_bet <= 5 * big_blind:
             pot_odds = pot_odds / 2
-            log.debug(f"Treating pot odds as {pot_odds} because preflop and low bet")
+            log.info(f"Treating pot odds as {pot_odds} because preflop and low bet")
         # / TRIPLEJACK SPECIFIC
 
+        print("stack size", stack_size, "big_blind", big_blind)
         bb_stack = stack_size // big_blind
-        log.debug(f"Stack size: {bb_stack} BBs ({stack_size})")
+        log.info(f"Stack size: {bb_stack} BBs ({stack_size})")
 
         ### PREFLOP DECISION MAKING
 
@@ -423,13 +426,13 @@ class AlgoDecisions(PokerDecisionMaking):
                 and board_rank != PokerHands.TWO_PAIR
                 and board_rank != PokerHands.THREE_OF_A_KIND
                 and board_rank != PokerHands.FULL_HOUSE):
-            log.debug("Full House when no 2pair, 3kind, fh on board, equity is 100%")
+            log.info("Full House when no 2pair, 3kind, fh on board, equity is 100%")
             equity = 1
         elif our_hand_strength < PokerHands.FULL_HOUSE:
-            log.debug("4 of a kind or better, equity is 100%")
+            log.info("4 of a kind or better, equity is 100%")
             equity = 1
         else:
-            log.debug(f"Calculating equity with\n\t"
+            log.info(f"Calculating equity with\n\t"
                       f"Opponents: {active_opponents}\n\t"
                       f"Threshold: {threshold}\n\t"
                       f"Threshold players: {threshold_players}\n\t")
@@ -437,18 +440,18 @@ class AlgoDecisions(PokerDecisionMaking):
             equity = calculate_equity(hole_cards, community_cards, active_opponents,
                                       threshold_hand_strength=threshold,
                                       threshold_players=threshold_players)
-        log.debug(f"Equity: {equity}")
+        log.info(f"Equity: {equity}")
 
         # comparing equity and pot odds
 
         if equity < pot_odds:
-            log.debug("Equity less than pot odds, folding")
+            log.info("Equity less than pot odds, folding")
             if self.current_street == PokerStages.RIVER and facing_bet == big_blind:
-                log.debug("River and facing min bet, calling")
+                log.info("River and facing min bet, calling")
                 return PokerDecisionChoice.call()
             return fold_or_check(facing_bet)
         elif pot_odds > 0:
-            log.debug(f"{equity} > {pot_odds}, playing")
+            log.info(f"{equity} > {pot_odds}, playing")
 
         # finding the equity to size bet with (betting_equity), special cases described in log() statements
 
@@ -457,13 +460,13 @@ class AlgoDecisions(PokerDecisionMaking):
                 and active_opponents <= 2
                 and threshold >= PokerHands.PAIR):
             betting_equity = calculate_equity(hole_cards, community_cards, active_opponents,
-                                              threshold_hand_strength=7.5,
+                                              threshold_hand_strength=PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR),
                                               threshold_players=1)
-            log.debug(f"River, >=50BB pot, <=2 ops, calculate betting equity w threshold 7.5 ({betting_equity})")
+            log.info(f"River, >=50BB pot, <=2 ops, calculate betting equity w threshold 7.5 ({betting_equity})")
             # betting_equity = betting_equity / 2
             # ^ this was in original code but seems rather timid?
         elif equity < 0.7 and self.current_street == PokerStages.RIVER and total_pot >= 50 * big_blind:
-            log.debug("River, big pot, <70% equity, don't bet a lot")
+            log.info("River, big pot, <70% equity, don't bet a lot")
             betting_equity = equity / 3
         else:  # general case
             # calculating ideal bet becomes negative after 50% equity,
@@ -471,7 +474,7 @@ class AlgoDecisions(PokerDecisionMaking):
             betting_equity = equity / 2
 
             if self.currently_betting and self.current_street == PokerStages.FLOP and facing_bet == 0:
-                log.debug("C-betting")  # not really a c bet more like bet more than usual if c bet criteria is met
+                log.info("C-betting")  # not really a c bet more like bet more than usual if c bet criteria is met
                 # cause the bot already likes betting flops
                 betting_equity = min(0.4, equity)  # the 0.4 is bc of infinity vertical asymptote at 0.5
 
@@ -481,17 +484,17 @@ class AlgoDecisions(PokerDecisionMaking):
             ideal_bet = stack_size
         elif equity < (1 / (active_opponents + 1) / 2):
             # if we expect to win less than half the chance of randomly winning, yeah don't bet lol
-            log.debug("I REALLY don't think we're winning this one boys, dont bet")
+            log.info("I REALLY don't think we're winning this one boys, dont bet")
             ideal_bet = 0
         else:
             if equity < (1 / (active_opponents + 1)) and self.current_street > PokerStages.FLOP:
                 # if we expect to win less than often than random chance, bet less, unless it's the flop
-                log.debug("I don't think we're winning this one boys, bet less")
+                log.info("I don't think we're winning this one boys, bet less")
                 betting_equity = betting_equity / 2
 
             # calculating the bet at which the pot odds are equal to the equity
             ideal_bet = (betting_equity * mid_pot) / (1 - (2 * betting_equity))  # you can derive this equation yourself
-            log.debug(f"Ideal bet: {ideal_bet}")
+            log.info(f"Ideal bet: {ideal_bet}")
         if ideal_bet < 0:
             raise Exception("Ideal bet is negative")
 
@@ -505,30 +508,30 @@ class AlgoDecisions(PokerDecisionMaking):
                 bluff_frequency = 0.3 * (
                     2 if self.currently_bluffing else 1) + 0.1 if self.current_street != PokerStages.PREFLOP else 0
                 if total_pot <= max(0.025 * stack_size, 12) * big_blind and random.random() < bluff_frequency:
-                    log.debug(f"Bluffing because no bet, small pot, and {bluff_frequency * 100}% hit")
+                    log.info(f"Bluffing because no bet, small pot, and {bluff_frequency * 100}% hit")
                     self.currently_bluffing = True
                     return PokerDecisionChoice.bet(int((0.5 + (0.5 * random.random())) * total_pot))
                 elif (total_pot <= max(0.05 * stack_size, 16) * big_blind
                       and self.current_street == PokerStages.RIVER and random.random() < bluff_frequency):
-                    log.debug(f"Bluffing because no bet, river, small pot and {bluff_frequency * 100}% hit")
+                    log.info(f"Bluffing because no bet, river, small pot and {bluff_frequency * 100}% hit")
                     self.currently_bluffing = True
                     return PokerDecisionChoice.bet(int((0.5 + (0.5 * random.random())) * total_pot))
 
-            log.debug("Calling")
+            log.info("Calling")
             return PokerDecisionChoice.call()
         # if current bet is below 75% of ideal bet, raise
         if facing_bet < 0.75 * ideal_bet:
             # SLOW ROLLING
             if facing_bet == 0:
                 if random.random() < 0.3 and equity < 0.5:
-                    log.debug("Slow rolling because no bet and 30% hit and <50% equity")
+                    log.info("Slow rolling because no bet and 30% hit and <50% equity")
                     ideal_bet = ideal_bet / 2
 
             if ideal_bet < 0.1 * total_pot:
-                log.debug("Not worth raising")
+                log.info("Not worth raising")
                 return PokerDecisionChoice.call()
             else:
-                log.debug("Raising")
+                log.info("Raising")
                 if equity < 0.9:
                     return PokerDecisionChoice.bet(min(int(ideal_bet), stack_size, mid_pot))
                     # don't bet more than pot ever, helps to keep variance low with a kinda dumb bot
