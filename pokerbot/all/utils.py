@@ -28,7 +28,6 @@ class PokerHands:
     STRAIGHT_FLUSH = 1
     ROYAL_FLUSH = 0
 
-    
     @staticmethod
     def merge(low: int, high: int) -> float:
         """
@@ -104,6 +103,26 @@ def has_flush_draw(board_cards):
         if suits.count(suit) >= 4:
             flush_draw = True
     return flush_draw
+
+
+# checks if list of cards with length 3 or 4 has three of a kind
+def has_three_of_a_kind(cards):
+    cards = [Card.get_rank_int(card) for card in cards]
+    for card in cards:
+        if cards.count(card) == 3:
+            return True
+    return False
+
+
+# checks if list of cards with length 4 has two pair
+def has_two_pair(cards):
+    cards = [Card.get_rank_int(card) for card in cards]
+    cards_set = set(cards)
+    pairs = 0
+    for card in cards_set:
+        if cards.count(card) >= 2:
+            pairs += 1
+    return pairs >= 2
 
 
 def is_in_percentile(percentile, hole_cards, multiple_opponents=True):

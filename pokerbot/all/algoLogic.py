@@ -27,7 +27,7 @@ def calculate_equity(hole_cards: list[Card],
                      simulation_time=4000,  # how much time in ms spent on calculations MAX
                      num_simulations=2000,
                      # num successful simulations to be satisfied & return before simulation_time is up
-                     threshold_hand_strength=PokerHands.HIGH_CARD,  # min strength of hands opponents have/will have
+                     threshold_hand_strength=PokerHands.HIGH_CARD,  # min strength of hands opponents will have at river
                      threshold_players=1,  # min players we assume satisfy threshold_hand_strength
                      ) -> float:
     evaluator = Evaluator()
@@ -329,7 +329,7 @@ class AlgoDecisions(PokerDecisionMaking):
                 stack_size: int,
                 active_opponents: int,
                 ) -> PokerDecisionChoice:
-        
+
         print("Our turn!", Card.ints_to_pretty_str(hole_cards), Card.ints_to_pretty_str(community_cards))
 
         current_street = get_street(community_cards)
@@ -368,7 +368,7 @@ class AlgoDecisions(PokerDecisionMaking):
                                          (1.5 if facing_bet != big_blind else 1))
             if total_pot < approximate_pot:
                 log.info(f"Assuming some callers behind, pot value ({total_pot}) "
-                          f"less than {approximate_pot}, setting it to that")
+                         f"less than {approximate_pot}, setting it to that")
                 total_pot = approximate_pot
 
         ###
@@ -421,22 +421,27 @@ class AlgoDecisions(PokerDecisionMaking):
 
         # calculating equity, with two special cases where equity should be 100% to save calculation
 
-        if current_street == PokerStages.RIVER:
-            if our_hand_strength == PokerHands.FULL_HOUSE:
+        if our_hand_strength == PokerHands.FULL_HOUSE:
+            if self.current_street == PokerStages.RIVER:
                 _, board_rank = evaluate_hand([], community_cards)
                 if (board_rank != PokerHands.TWO_PAIR
                         and board_rank != PokerHands.THREE_OF_A_KIND
                         and board_rank != PokerHands.FULL_HOUSE):
                     log.info("River, fh when no 2pair, 3kind, fh on board, equity is 100%")
                     equity = 1
+            elif self.current_street == PokerStages.TURN:
+                if (not has_three_of_a_kind(community_cards)
+                        and not has_two_pair(community_cards)):
+                    log.info("Turn, fh when no 2pair, 3kind on board, equity is 100%")
+                    equity = 1
         elif our_hand_strength < PokerHands.FULL_HOUSE:
             log.info("4 of a kind or better, equity is 100%")
             equity = 1
         else:
             log.info(f"Calculating equity with\n\t"
-                      f"Opponents: {active_opponents}\n\t"
-                      f"Threshold: {threshold}\n\t"
-                      f"Threshold players: {threshold_players}\n\t")
+                     f"Opponents: {active_opponents}\n\t"
+                     f"Threshold: {threshold}\n\t"
+                     f"Threshold players: {threshold_players}\n\t")
 
             equity = calculate_equity(hole_cards, community_cards, active_opponents,
                                       threshold_hand_strength=threshold,
@@ -461,13 +466,14 @@ class AlgoDecisions(PokerDecisionMaking):
                 and active_opponents <= 2
                 and threshold >= PokerHands.PAIR):
             betting_equity = calculate_equity(hole_cards, community_cards, active_opponents,
-                                              threshold_hand_strength=PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR),
+                                              threshold_hand_strength=PokerHands.merge(PokerHands.PAIR,
+                                                                                       PokerHands.TWO_PAIR),
                                               threshold_players=1)
             log.info(f"River, >=50BB pot, <=2 ops, calculate betting equity w threshold 7.5 ({betting_equity})")
             # betting_equity = betting_equity / 2
             # ^ this was in original code but seems rather timid?
         elif equity < 0.7 and self.current_street == PokerStages.RIVER and total_pot >= 50 * big_blind:
-            log.info("River, big pot, <70% equity, don't bet a lot")
+            log.info("River, >=50BB pot, <70% equity, don't bet a lot")
             betting_equity = equity / 3
         else:  # general case
             # calculating ideal bet becomes negative after 50% equity,
