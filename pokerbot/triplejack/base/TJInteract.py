@@ -273,7 +273,7 @@ class TJInteract(PokerInteract):
             .move_by_offset(x2 - x1, y2 - y1) \
             .release().perform()
 
-    def _ss(self):
+    def _ss(self):  # why not make this a class property/field that is updated once per tick? - amelia
         try:
             el = self.driver.find_element(By.TAG_NAME, "canvas")
             return prepare_ss(el.screenshot_as_png)
@@ -288,7 +288,7 @@ class TJInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        clicks = int((sb * round((amt - self.detector.min_bet(ss)) / sb)) / (bb // 2))
+        clicks = int((sb * round((amt - self.detector.min_bet(ss)) / sb)) / sb)
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
 

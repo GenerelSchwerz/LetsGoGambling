@@ -38,6 +38,8 @@ def calculate_equity(hole_cards: list[Card],
                      # if threshold_hand_strength were PokerHands.THREE_OF_A_KIND and threshold_players was 2,
                      # then we calculate the chance that we beat/chop with everyone,
                      # assuming that AT LEAST two players have AT LEAST three of a kind
+
+                     # also supports a threshold_hand_strength of X.5, which means to average 50/50 between X and X+1
                      ) -> float:
     evaluator = Evaluator()
     wins = 0
