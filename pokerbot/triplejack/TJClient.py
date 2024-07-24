@@ -1,5 +1,4 @@
-
-
+import json
 import time
 
 from ..all.full_client import AClient
@@ -43,7 +42,9 @@ def main():
 
 
     try:
-        bot.start("ForTheChips", "WooHoo123!")
+        with open('config.json') as config_file:
+            config = json.load(config_file)
+        bot.start(config["username"], config["password"])
         run_ticks(bot, 2)
     except KeyboardInterrupt:
         print("bot finished")
