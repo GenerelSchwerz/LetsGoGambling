@@ -42,7 +42,7 @@ def main():
 
 
     try:
-        with open('config.json') as config_file:
+        with open('pokerbot/config.json') as config_file:
             config = json.load(config_file)
         bot.start(config["username"], config["password"])
         run_ticks(bot, 2)
