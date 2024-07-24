@@ -7,8 +7,8 @@ from .base import TJPokerDetect, TJInteract, TJEventEmitter
 from ..all.algoLogic import AlgoDecisions
 
 
-def run_ticks(_bot):
-    time_split = 2
+def run_ticks(_bot, time_split=2):
+    
     last_time = time.time()
     while True:
 
@@ -44,7 +44,7 @@ def main():
 
     try:
         bot.start("ForTheChips", "WooHoo123!")
-        run_ticks(bot)
+        run_ticks(bot, 2)
     except KeyboardInterrupt:
         print("bot finished")
         bot.stop()

@@ -314,8 +314,13 @@ class AlgoDecisions(PokerDecisionMaking):
                 log.info(f"Preflop raise to {ideal_bet}")
                 return bet(ideal_bet, stack_size)
             else:
-                log.info("Preflop call/check")
-                return PokerDecisionChoice.call()
+                if facing_bet == 0:
+                    log.info("Preflop check")
+                    return PokerDecisionChoice.check()
+                else:
+                    log.info("Preflop call")
+                    return PokerDecisionChoice.call()
+
         # rest of preflop logic
         if facing_bet > 10 * big_blind:
             equity = calculate_equity_preflop(hole_cards, community_cards, active_opponents,
@@ -543,8 +548,13 @@ class AlgoDecisions(PokerDecisionMaking):
                     self.currently_bluffing = True
                     return PokerDecisionChoice.bet(int((0.5 + (0.5 * random.random())) * total_pot))
 
-            log.info("Calling")
-            return PokerDecisionChoice.call()
+            if facing_bet == 0:
+                log.info("Checking")
+                return PokerDecisionChoice.check()
+            else:
+                log.info("Calling")
+                return PokerDecisionChoice.call()
+            
         # if current bet is below 75% of ideal bet, raise
         if facing_bet < 0.75 * ideal_bet:
             # SLOW ROLLING

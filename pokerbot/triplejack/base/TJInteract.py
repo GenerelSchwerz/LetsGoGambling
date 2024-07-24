@@ -253,13 +253,24 @@ class TJInteract(PokerInteract):
     
 
 
-    def __canvas_click(self, x: int, y: int):
+    def __canvas_click(self, x: int, y: int, amt=1):
         body = self.driver.find_element(By.TAG_NAME, "body")
         canvas = self.driver.find_element(By.TAG_NAME, "canvas")
         bW, bH = body.size["width"], body.size["height"]
         cX, cY = canvas.location["x"], canvas.location["y"]
         
-        ActionChains(self.driver).move_to_element_with_offset(body,-bW // 2 + x + cX, -bH // 2 + y + cY).click().perform()
+        # ActionChains(self.driver).move_to_element_with_offset(body,-bW // 2 + x + cX, -bH // 2 + y + cY).click().perform()
+
+        # do X times
+        chain = ActionChains(self.driver)
+        chain.move_to_element_with_offset(body, -bW // 2 + x + cX, -bH // 2 + y + cY)
+        chain.click()
+        for i in range(amt - 1):
+            chain.pause(0.1)
+            chain.click()
+        chain.perform()
+
+
 
     def __canvas_drag(self, x1: int, y1: int, x2: int, y2: int):
         body = self.driver.find_element(By.TAG_NAME, "body")
@@ -294,10 +305,11 @@ class TJInteract(PokerInteract):
 
         press_plus = self.detector.plus_button(ss, threshold=0.99)
         if press_plus is None:
+                print("Could not find plus button")
                 return False
 
-        for i in range(clicks):
-            self.__canvas_click(*mid(press_plus))
+
+        self.__canvas_click(*mid(press_plus), clicks)
         
         button = self.detector.bet_button(ss, threshold=0.99)
         if button is None:

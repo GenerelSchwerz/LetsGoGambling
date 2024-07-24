@@ -133,7 +133,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.POST_POPUP_BYTES = self.load_image("postpopup.png")
         self.BIG_POPUP_BYTES = self.load_image("bigpopup.png")
         self.SMALL_POPUP_BYTES = self.load_image("smallpopup.png")
-        self.PLUS_BUTTON_BYTES = self.load_image("betraisebutton.png")
+        self.PLUS_BUTTON_BYTES = self.load_image("plusbutton.png")
 
         self.POPUP_BYTES = [
             self.BASE_POPUP_BYTES,
