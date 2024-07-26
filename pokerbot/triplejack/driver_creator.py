@@ -30,7 +30,7 @@ def create_tj_driver(headless=False):
         driver = webdriver.Firefox(options=options)
         # driver.maximize_window() # why is this setting to 4k lol, no need
     else:
-        options.add_argument("--window-size=1280,720")
+        # options.add_argument("--window-size=1280,720")
         # options.add_argument("--start-maximized")
         driver = webdriver.Firefox(options=options)
 

@@ -48,7 +48,7 @@ class PokerImgDetect:
         
         w = wanted.shape[0]
         h = wanted.shape[1]
- 
+
         # automatically handle transparency 
         if len(wanted.shape) == 3 and wanted.shape[2] == 4:
             # assuming wanted is currently in BGRA format, convert back to BGR (color)
