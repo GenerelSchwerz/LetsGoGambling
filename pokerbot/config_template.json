@@ -6,6 +6,7 @@
         "password": "<here>"
       }
     ],
-    "secondsPerTick": 2 
+    "secondsPerTick": 2,
+    "headless": true
   }
 }

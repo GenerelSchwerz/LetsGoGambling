@@ -30,14 +30,14 @@ def run_ticks(_bot: AClient, time_split=2):
         last_time = time.time()
 
 
-def launch_user(username: str, password: str, time_split=2):
+def launch_user(username: str, password: str, time_split=2, headless=False):
     from ..all.algoLogic import AlgoDecisions
 
     detector = TJPokerDetect()
     detector.load_images()
 
     event_handler = TJEventEmitter(detector=detector)
-    interactor = TJInteract(headless=False, detector=detector)
+    interactor = TJInteract(headless=headless, detector=detector)
 
     logic = AlgoDecisions()
 
@@ -87,7 +87,8 @@ def main():
                 username = info["username"]
                 password = info["password"]
                 time_split = tj_cfg["secondsPerTick"]
-                executor.submit(launch_user, username, password, time_split)
+                headless = tj_cfg["headless"]
+                executor.submit(launch_user, username, password, time_split, headless)
 
         # wait until all threads are done
         executor.shutdown(wait=True)
