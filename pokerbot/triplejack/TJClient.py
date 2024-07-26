@@ -91,10 +91,6 @@ def main():
         print("Config file not found")
         return
 
-    from ..all.simpleLogic import SimpleDecisions
-    from ..all.algoLogic import AlgoDecisions
-
-    launch_user(username, password)
     
 
 
