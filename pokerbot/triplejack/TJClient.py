@@ -56,10 +56,12 @@ def launch_user(username: str, password: str):
 def main():
     import os
     # clear midrun
+
+    os.makedirs("./midrun", exist_ok=True)
+
     for file in os.listdir("./midrun"):
         os.remove(f"./midrun/{file}")
 
-    os.makedirs("./midrun", exist_ok=True)
 
     from concurrent.futures import ThreadPoolExecutor
     try:
