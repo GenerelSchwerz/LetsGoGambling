@@ -287,7 +287,10 @@ class TJInteract(PokerInteract):
     def _ss(self):  # why not make this a class property/field that is updated once per tick? - amelia
         try:
             el = self.driver.find_element(By.TAG_NAME, "canvas")
-            return prepare_ss(el.screenshot_as_png)
+            img = prepare_ss(el.screenshot_as_png)
+
+            print(img.shape)
+            return img
         except Exception as e:
             return None
     
