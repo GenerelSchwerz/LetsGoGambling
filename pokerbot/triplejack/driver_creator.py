@@ -1,9 +1,5 @@
 from selenium import webdriver
 
-
-import pywinctl
-
-
 def create_tj_driver(headless=False):
 
     options = webdriver.FirefoxOptions()
