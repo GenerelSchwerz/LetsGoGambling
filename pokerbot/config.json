@@ -1,0 +1,11 @@
+{
+  "triplejack": {
+    "accounts": [
+      {
+        "username": "ForTheChips",
+        "password": "WooHoo123!"
+      }
+    ],
+    "SecondsPerTick": 2
+  }
+}

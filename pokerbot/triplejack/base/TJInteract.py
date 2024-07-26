@@ -266,7 +266,7 @@ class TJInteract(PokerInteract):
         chain.move_to_element_with_offset(body, -bW // 2 + x + cX, -bH // 2 + y + cY)
         chain.click()
         for i in range(amt - 1):
-            chain.pause(0.1) 
+            # chain.pause(0.1) # hey btw do you mind if i make the login thing use a config.json that isnt git tracked?
             chain.click()
         chain.perform()
 
@@ -292,8 +292,7 @@ class TJInteract(PokerInteract):
             return None
     
 
-
-    def bet(self, amt: int, sb: int, bb: int, ss=None) -> bool:
+    def bet(self, amt: int, sb: int, bb: int, ss=None) -> bool: 
         # if self.page != TJPage.TABLE:
         #     return False
         if ss is None:
@@ -303,19 +302,19 @@ class TJInteract(PokerInteract):
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
 
-        press_plus = self.detector.plus_button(ss, threshold=0.99)
+        press_plus = self.detector.plus_button(ss, threshold=0.95)
         if press_plus is None:
-                print("Could not find plus button")
-                return False
+            print("Could not find plus button")
+            return False
 
 
         self.__canvas_click(*mid(press_plus), clicks)
         
-        button = self.detector.bet_button(ss, threshold=0.99)
+        button = self.detector.bet_button(ss, threshold=0.95)
         if button is None:
-            button = self.detector.raise_button(ss, threshold=0.99)
+            button = self.detector.raise_button(ss, threshold=0.95) # r u working on ocr also did you see my other comment
             if button is None:
-                button = self.detector.allin_button(ss, threshold=0.99)
+                button = self.detector.allin_button(ss, threshold=0.95)
                 if button is None:
                     return False
 
@@ -330,7 +329,7 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.raise_button(ss, threshold=0.99)
+        button = self.detector.raise_button(ss, threshold=0.95)
 
         if button is None:
             return False
@@ -345,7 +344,7 @@ class TJInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        button = self.detector.check_button(ss, threshold=0.99)
+        button = self.detector.check_button(ss, threshold=0.95)
 
         if button is None:
             return False
@@ -360,7 +359,7 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.fold_button(ss, threshold=0.99)
+        button = self.detector.fold_button(ss, threshold=0.95)
 
         if button is None:
             return False
@@ -377,7 +376,7 @@ class TJInteract(PokerInteract):
             ss = self._ss()
 
 
-        button = self.detector.call_button(ss, threshold=0.99)
+        button = self.detector.call_button(ss, threshold=0.95)
 
         if button is None:
             return False

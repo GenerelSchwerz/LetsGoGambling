@@ -354,7 +354,8 @@ class AlgoDecisions(PokerDecisionMaking):
                 active_opponents: int,
                 ) -> PokerDecisionChoice:
 
-        print("Our turn!", Card.ints_to_pretty_str(hole_cards), Card.ints_to_pretty_str(community_cards))
+        print("Our turn!", Card.ints_to_pretty_str(hole_cards), Card.ints_to_pretty_str(community_cards),
+              f"facing bet: {facing_bet}, min bet: {min_bet}, mid pot: {mid_pot}, total pot: {total_pot}, big blind: {big_blind}, stack size: {stack_size}, active opponents: {active_opponents}")
 
         current_street = get_street(community_cards)
 
