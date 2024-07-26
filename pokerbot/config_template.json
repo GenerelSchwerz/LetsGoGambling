@@ -1,4 +1,11 @@
 {
-  "username": "your_username",
-  "password": "your_password"
+  "triplejack": {
+    "accounts": [
+      {
+        "username": "<here>",
+        "password": "<here>"
+      }
+    ],
+    "secondsPerTick": 2 
+  }
 }
