@@ -67,6 +67,12 @@ class TJEventEmitter(PokerEventHandler):
             total_pot = sum(current_bets) + mid_pot
             facing_bet = max(current_bets)
 
+        table_players = self.detector.table_players(img)
+
+        active_players = [] #self.detector.active_players(img)
+
+        print("[OUR TURN] table:", table_players, "active:", active_players, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
+
         self.emit(PokerEvents.OUR_TURN,
                     hole_cards,
                     community_cards,

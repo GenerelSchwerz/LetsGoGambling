@@ -82,8 +82,8 @@ def main():
         with open("pokerbot/config.json") as config_file:
             tj_cfg = json.load(config_file)["triplejack"]
             firefox = tj_cfg["firefox"]
-            acc_amt = tj_cfg["accountAmt"]
             accounts = tj_cfg["accounts"]
+            acc_amt = tj_cfg.get("accountAmt", len(accounts))
 
         with ThreadPoolExecutor() as executor:
 

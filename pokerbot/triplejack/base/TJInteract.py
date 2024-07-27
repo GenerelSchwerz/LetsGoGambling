@@ -84,14 +84,46 @@ class TJInteract(PokerInteract):
 
         self.page = TJPage.get_page(self.driver)
 
+    def do_stupid_resizing(self):
+        data = self.driver.get_window_size()
+        width = data["width"]
+        height = data["height"] * 9 // 10
+        self.driver.execute_script(f"""
+            var canvas = document.querySelector('.css-80txve');  // Adjust selector if necessary
+            if (canvas) {{
+                canvas.width = {width};  // Set desired width
+                canvas.height = {height};  // Set desired height
+                canvas.style.width = '{width}px';  // Set desired CSS width
+                canvas.style.height = '{height}px';  // Set desired CSS height
+            }} else {{
+                console.error('Canvas not found');
+            }}
+            """)
+            
+        self.driver.set_window_size(data["width"] // 2, data["height"] // 2)
+        self.driver.set_window_size(data["width"], data["height"])
+
+        # now select canvas (active element)
+        # self.driver.find_element(By.TAG_NAME, "body").click()
+
+        
+
+
     def start(self, username: str, password: str):
         self.login(username, password)
         self.halt_until_room_select()
         time.sleep(4) # built-in delay/transition into the website
 
+     
+        # time.sleep(0.5)
+
         self.sit_down() # sit down at table
+      
         while self.try_close_popup():
             time.sleep(0.25)
+
+        self.do_stupid_resizing()
+
 
     def login(self, username: str, password: str):
         self.driver.get("https://triplejack.com")
@@ -211,7 +243,8 @@ class TJInteract(PokerInteract):
         while self.try_close_popup():
             time.sleep(0.25)
 
-        locations = self.detector.sit_buttons(self._ss())
+        ss = self._ss()
+        locations = self.detector.sit_buttons(ss)
 
       
 
