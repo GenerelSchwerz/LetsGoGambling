@@ -259,11 +259,11 @@ start = time.time()
 res1 = calculate_equity(
     hole_cards,
     community_cards,
-    active_opponents=1,
+    active_opponents=num_opponents,
     simulation_time=sim_time,
     num_simulations=runs,
     threshold_hand_strength=threshold,
-    threshold_players=num_opponents,
+    threshold_players=1,
 )
 
 print(res1)
