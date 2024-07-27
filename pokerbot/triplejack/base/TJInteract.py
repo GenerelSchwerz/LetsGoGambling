@@ -86,8 +86,8 @@ class TJInteract(PokerInteract):
 
     def do_stupid_resizing(self):
         data = self.driver.get_window_size()
-        width = 1344#data["width"]
-        height = 917#data["height"] * 9 // 10
+        width = data["width"]
+        height = data["height"] * 9 // 10
         self.driver.execute_script(f"""
             var canvas = document.querySelector('.css-80txve');  // Adjust selector if necessary
             if (canvas) {{
