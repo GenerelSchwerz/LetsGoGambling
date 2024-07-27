@@ -363,7 +363,10 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # cv2.destroyAllWindows()
 
         lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=100, minLineLength=200, maxLineGap=20)
-
+        if lines is None:
+            return []
+        
+        
         # filter out lines of length more than 260
         lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 260, lines))
         # filter out lines whose y1 and y2 arent within 5 pixels
