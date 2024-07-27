@@ -72,7 +72,7 @@ def fast_calculate_equity(
             if board_class >= PokerHands.PAIR:
                 opponent_class = evaluator.get_rank_class(opponent_rank)
 
-                # this code is retarded. this is literally ONLY a pair.
+                # this code is retarded. this is literally ONLY a pair and two pair.
                 if PokerHands.THREE_OF_A_KIND < threshold_class < PokerHands.HIGH_CARD:
                     adj_thresh = threshold_class - (PokerHands.HIGH_CARD - board_class)
                 else:
@@ -82,8 +82,7 @@ def fast_calculate_equity(
                 if opponent_class <= adj_thresh:
                     thresh_sat += 1
 
-            # opponent has literally anything on this board.
-            # Also, isn't this just high card???
+            # Also, isn't this just high card higher than what is on board?
             elif opponent_rank < board_rank:
                 thresh_sat += 1
 
@@ -231,14 +230,15 @@ import time
 start = time.time()
 
 
-hole_cards = [Card.new("Ah"), Card.new("4d")]
+hole_cards = [Card.new("Ah"), Card.new("Kd")]
 community_cards = [Card.new("As"), Card.new("3c"), Card.new("2h")]
 sim_time = 4000
-runs = 10000
+runs = 1000
 
-num_opponents = 2
+num_opponents = 3
+threshold_players = 1
 
-threshold = PokerHands.HIGH_CARD
+threshold = PokerHands.TWO_PAIR
 
 res = fast_calculate_equity(
     hole_cards,
@@ -246,7 +246,7 @@ res = fast_calculate_equity(
     sim_time=sim_time,
     runs=runs,
     threshold_classes=threshold,
-    threshold_players=1,
+    threshold_players=threshold_players,
     opponents=num_opponents,
 )
 
@@ -263,7 +263,7 @@ res1 = calculate_equity(
     simulation_time=sim_time,
     num_simulations=runs,
     threshold_hand_strength=threshold,
-    threshold_players=1,
+    threshold_players=threshold_players,
 )
 
 print(res1)
