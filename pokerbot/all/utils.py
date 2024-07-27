@@ -35,12 +35,6 @@ class PokerHands:
         """
         return (low + high) / 2
     
-class PokerHandDraws:
-    FLUSH_DRAW = 1
-    STRAIGHT_DRAW = 2
-    THREE_OF_A_KIND = 3
-    TWO_PAIR = 4
-
 
 perc_ranges_multiple_ops = {
     60: Range("22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 94s+, 84s+, 74s+, 64s+, 54s, A2o+, K3o+, Q5o+, J7o+, T7o+, 97o+"),
@@ -74,18 +68,18 @@ def bet(ideal_bet, stack_size):
     return PokerDecisionChoice.bet(min(int(ideal_bet), stack_size))
 
 
-def get_street(community_cards):
+def get_stage(community_cards):
     if len(community_cards) == 0:
-        current_street = PokerStages.PREFLOP
+        current_stage = PokerStages.PREFLOP
     elif len(community_cards) == 3:
-        current_street = PokerStages.FLOP
+        current_stage = PokerStages.FLOP
     elif len(community_cards) == 4:
-        current_street = PokerStages.TURN
+        current_stage = PokerStages.TURN
     elif len(community_cards) == 5:
-        current_street = PokerStages.RIVER
+        current_stage = PokerStages.RIVER
     else:
         raise ValueError("Malformed community cards")
-    return current_street
+    return current_stage
 
 
 ### CARD/BOARD EVALUATION ###

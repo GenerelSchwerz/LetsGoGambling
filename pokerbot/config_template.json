@@ -1,5 +1,7 @@
 {
   "triplejack": {
+    "firefox": false,
+    "accountAmt": 1,
     "accounts": [
       {
         "username": "<here>",

@@ -723,7 +723,7 @@ if __name__ == "__main__":
     import os
     import time
 
-    folder = "triplejack/new/base/tests"
+    folder = "pokerbot/triplejack/base/tests"
     # for all files in a directory, run the report_info function
     files = os.listdir(folder)
     # files = [

@@ -65,7 +65,7 @@ def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
 
 class TJInteract(PokerInteract):
 
-    def __init__(self, headless=False, detector: Union[TJPokerDetect, None] = None):
+    def __init__(self, firefox=False, headless=False, detector: Union[TJPokerDetect, None] = None):
         super().__init__()
         
 
@@ -79,7 +79,7 @@ class TJInteract(PokerInteract):
             self.detector = TJPokerDetect()
             self.detector.load_images()
 
-        self.driver = create_tj_driver(headless=headless)
+        self.driver = create_tj_driver(headless=headless, firefox=firefox)
         self.headless = headless
 
         self.page = TJPage.get_page(self.driver)
@@ -289,6 +289,13 @@ class TJInteract(PokerInteract):
             el = self.driver.find_element(By.TAG_NAME, "canvas")
             img = prepare_ss(el.screenshot_as_png)
 
+            idx = int(time.time() * 100_000) / 100_000
+            with open(f"./midrun/canvas-{idx}.png", "wb") as f:
+                f.write(el.screenshot_as_png)
+
+            with open(f"./midrun/ss-{idx}.png", "wb") as f:
+                f.write(self.driver.get_screenshot_as_png())
+            
             print(img.shape)
             return img
         except Exception as e:

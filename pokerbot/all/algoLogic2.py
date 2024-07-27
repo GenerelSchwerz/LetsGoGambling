@@ -1,3 +1,4 @@
+from typing import Union
 from treys import Card
 
 from ..abstract.pokerEventHandler import PokerStages
@@ -12,6 +13,8 @@ from treys import Deck, Evaluator
 
 import numba
 
+
+import time
 # hello
 
 
@@ -73,91 +76,127 @@ def determine_current_threshold(
 
 
 # TODO make everything numpy? Could probably see more performance that way.
-@numba.njit()
+# @numba.jit()
 def fast_calculate_equity(
     hole_cards: list[Card],
     community_cards: list[Card],
     sim_time=4000,
-    runs=1000,
-    threshold_class=PokerHands.HIGH_CARD,
+    runs=1500,
+    threshold_classes: Union[int, tuple[int, int]] = PokerHands.HIGH_CARD,
     threshold_players=1,
     opponents=1,
+    opps_satisfy_thresh_now=False,
 ) -> float:
     wins = 0
     known_cards = hole_cards + community_cards
 
     # set up full deck beforehand to save cycles.
     SEMI_FULL_DECK = Deck.GetFullDeck().copy()
+
     for card in known_cards:
         SEMI_FULL_DECK.remove(card)
 
     evaluator = Evaluator()
     board_len = len(community_cards)
 
+    # introducing stochastic variance here
+    if is_lower := (is_middle := isinstance(threshold_classes, tuple)):
+        threshold_class = threshold_classes[0]
+    elif isinstance(threshold_classes, int):
+        threshold_class = threshold_classes
+    else:
+        raise ValueError("threshold_classes must be an int or a tuple of two ints")
 
-    for idx in range(runs):
-        deck = Deck()
+    start = time.time()
+    run_c = 0
+    run_it = 0
+
+    deck = Deck()
+
+    # evals_list = list()
+    evals = [100_000_000 for _ in range(opponents)]
+
+    while run_c < runs:
+
+        if run_it % 100 == 0:
+            if (time.time() - start) * 1000 >= sim_time:
+                break
+
+        run_it += 1
+        # deck needs to be modified
+        # deck = Deck(shuffle=False)
         deck.cards = SEMI_FULL_DECK.copy()
         deck._random.shuffle(deck.cards)
 
         opponents_cards = [deck.draw(2) for _ in range(opponents)]
         full_board = community_cards + deck.draw(5 - board_len)
 
-        our_score = evaluator.evaluate(hole_cards, full_board)
-        our_rank = evaluator.get_rank_class(our_score)  
-
-        # if our own hand is worse than the threshold, we'll skip the comparison.
-        if our_rank > threshold_class:
-            continue # outer loop
-
         board_rank = evaluator.evaluate([], full_board)
         board_class = evaluator.get_rank_class(board_rank)
 
-        thresh_count = 0
+        opps_satisfy_thresh_now = opps_satisfy_thresh_now and board_len != 5
+        opp_board = community_cards if opps_satisfy_thresh_now else full_board
+
+        thresh_sat = 0
         opp_count = 0
-        evals = []
-        for opponent in opponents_cards:
-            opponent_rank = evaluator.evaluate(opponent, full_board)
-         
-            # weird amelia logic inbound (idk what this is tbh)
-            if board_class >= PokerHands.PAIR:
+
+        for idx, opponent in enumerate(opponents_cards):
+
+            opponent_rank = evaluator.evaluate(opponent, opp_board)
+
+            # if opponent has a worse hand than the board AND the board is worse than the threshold
+            # if opponent_rank >= board_rank and board_class >= threshold_class:
+            #     evals[idx] = 100_000_000
+            #     continue
+
+            if board_class <= threshold_class:
+
+                # if opponent rank is CURRENTLY stronger than RAN OUT board rank, then threshold is satisfied
+                if opponent_rank <= board_rank:  # include chops, if not then only do <
+                    thresh_sat += 1
+            else:
                 opponent_class = evaluator.get_rank_class(opponent_rank)
+                if opponent_class <= threshold_class:
+                    thresh_sat += 1
 
-                # this code is retarded. this is literally ONLY a pair.
-                if PokerHands.THREE_OF_A_KIND < threshold_class < PokerHands.HIGH_CARD:
-                    adj_thresh = threshold_class - (PokerHands.HIGH_CARD - board_class)
-                else:
-                    adj_thresh = threshold_class
-
-                # opponent's category is stronger than the threshold
-                if opponent_class < adj_thresh:
-                    thresh_count += 1
-
-            # opponent has literally anything on this board.
-            elif opponent_rank < board_rank:
-                thresh_count += 1
-
-            evals.append(opponent_rank)
+            # evaluate entire board out since threshold met.
+            evals[idx] = (
+                evaluator.evaluate(opponent, full_board)
+                if opps_satisfy_thresh_now
+                else opponent_rank
+            )
             opp_count += 1
 
-            if thresh_count >= threshold_players:
-                break # inner loop
-        else:
-            print("No one met the threshold")
-            continue # outer loop
+            if thresh_sat >= threshold_players:
+                break
 
-        # fill in all other opponents
-        for idx in range(opp_count, opponents):
-            evals.append(evaluator.evaluate(opponents_cards[idx], full_board))
+        if thresh_sat >= threshold_players:
+            run_c += 1
 
-        # if we are stronger than all opponents, we win.
-        if all([our_score <= opp_score for opp_score in evals]):
-            wins += 1
+            our_rank = evaluator.evaluate(hole_cards, full_board)
 
-    return wins / runs if runs > 0 else 0
-      
+            if is_middle:
+                threshold_class = threshold_classes[int(is_lower)]
+                is_lower = not is_lower
 
+            for idx in range(opp_count, opponents):
+                evals[idx] = evaluator.evaluate(opponents_cards[idx], full_board)
 
+            for opp_rank in evals:
+                if our_rank > opp_rank:
+                    # for idx, opp_rank in enumerate(evals):
+                    #     if our_rank > opp_rank:
+                    #         print(f"For value: {threshold_class}, We lost to hand {idx + 1}: {Card.ints_to_pretty_str(opponents_cards[idx])} | {Card.ints_to_pretty_str(full_board)}, {evaluator.get_rank_class(opp_rank)}, {evaluator.get_rank_class(our_rank)}")
+                    break  # mid level loop
+
+            else:
+                # print(f"For value: {threshold_class}, We won with: {Card.ints_to_pretty_str(hole_cards)} | {Card.ints_to_pretty_str(full_board)}, {evaluator.get_rank_class(our_rank)}")
+                # for opp in range(opp_count):
+                #     print(f"Beat hand {opp + 1}: {Card.ints_to_pretty_str(opponents_cards[opp])} | {Card.ints_to_pretty_str(full_board)}, {evaluator.get_rank_class(evals[opp])}, {evaluator.get_rank_class(our_rank)}")
+                wins += 1
+
+    print(f"Successful simulations: {run_c}, wins: {wins}, runs: {run_it}")
+    return wins / run_c if run_c > 0 else 0
 
 
 class AlgoDecisions2(PokerDecisionMaking):
@@ -171,8 +210,6 @@ class AlgoDecisions2(PokerDecisionMaking):
         self.was_reraised = False
         self.current_stage_bet = 0
 
-    def is_board_draw_heavy(self, community_cards: list[Card]) -> bool:
-        pass
 
 
     def wanted_on_turn(
@@ -181,7 +218,7 @@ class AlgoDecisions2(PokerDecisionMaking):
             community_cards: list[Card],
             stage: int,
             facing_bets: list[tuple[Player, int]],
-            facing_players: list[Player],
+            facing_players: list[Player], # players may not have bet yet.
             mid_pot: int,
             min_bet: int,
             big_blind: int,
@@ -196,11 +233,15 @@ class AlgoDecisions2(PokerDecisionMaking):
 
         # first, refine the data to match accordingly.
         actual_facing_bet = max_facing - self.current_stage_bet
+        self.current_stage_bet = actual_facing_bet
 
         if actual_facing_bet < max_facing:
             self.was_reraised = True
 
-        self.current_stage_bet = actual_facing_bet
+
+        # let's find some basic info about this hand.
+            
+        
 
     def on_turn(
         self,
