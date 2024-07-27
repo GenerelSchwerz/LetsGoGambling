@@ -34,6 +34,12 @@ class PokerHands:
         Merge two hand strengths into one.
         """
         return (low + high) / 2
+    
+class PokerHandDraws:
+    FLUSH_DRAW = 1
+    STRAIGHT_DRAW = 2
+    THREE_OF_A_KIND = 3
+    TWO_PAIR = 4
 
 
 perc_ranges_multiple_ops = {
@@ -88,7 +94,7 @@ def get_street(community_cards):
 def evaluate_hand(hole_cards, community_cards):
     # check if community cards is empty
     if not community_cards:
-        return 9999, 9
+        return 9999, PokerHands.HIGH_CARD
     evaluator = Evaluator()
     player_hand = evaluator.evaluate(hole_cards, community_cards)
     player_hand_strength = evaluator.get_rank_class(player_hand)

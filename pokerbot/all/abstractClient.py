@@ -89,6 +89,7 @@ class AClient:
         self,
         hole_cards: list[Card],
         community_cards: list[Card],
+        stage: int,
         facing_bet: int,
         min_bet: int,
         mid_pot: int,
@@ -101,6 +102,7 @@ class AClient:
         result = self.logic.on_turn(
             hole_cards,
             community_cards,
+            stage,
             facing_bet,
             min_bet,
             mid_pot,
@@ -127,6 +129,8 @@ class AClient:
 
         if not self.detector.is_initialized():
             self.detector.load_images()
+
+
 
         self.interactor.start(username, password)
 

@@ -12,7 +12,7 @@ def run_ticks(_bot: AClient, time_split=2):
     while True:
         ss = _bot.interactor._ss()
 
-        cv2.imwrite(f"./midrun/{int(time.time() * 100_000) / 100_000}.png", ss)
+        # cv2.imwrite(f"./midrun/{int(time.time() * 100_000) / 100_000}.png", ss)
 
         _bot.event_handler.tick(ss)
         now = time.time()

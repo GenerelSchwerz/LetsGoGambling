@@ -14,6 +14,7 @@ class SimpleDecisions(PokerDecisionMaking):
     def on_turn(self,
                 hole_cards: list[Card],
                 community_cards: list[Card],
+                stage: int,
                 facing_bet: int,
                 min_bet: int,
                 mid_pot: int,

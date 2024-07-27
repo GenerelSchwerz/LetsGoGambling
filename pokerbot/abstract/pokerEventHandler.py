@@ -28,6 +28,7 @@ class PokerEvents:
                 Args:
                     - hole_cards: list[Card]
                     - community_cards: list[Card]
+                    - stage: int
                     - facing_bet: int
                     - min_bet: int
                     - mid_pot: int
@@ -87,6 +88,7 @@ class PokerStages:
     @staticmethod
     def to_str(stage: int) -> str:
         return PokerStages.pretty_str[stage]
+
     
 
 

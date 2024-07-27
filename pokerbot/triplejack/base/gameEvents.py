@@ -56,7 +56,7 @@ class TJEventEmitter(PokerEventHandler):
         self.last_hand = hand
 
 
-    def __emit_our_turn(self, img: cv2.typing.MatLike, hole_cards: list[Card], community_cards: list[Card]):
+    def __emit_our_turn(self, img: cv2.typing.MatLike, hole_cards: list[Card], community_cards: list[Card], stage: int):
         mid_pot = self.detector.middle_pot(img)
         current_bets = self.detector.current_bets(img)
 
@@ -70,6 +70,7 @@ class TJEventEmitter(PokerEventHandler):
         self.emit(PokerEvents.OUR_TURN,
                     hole_cards,
                     community_cards,
+                    stage,
                     facing_bet,
                     self.detector.min_bet(img),
                     mid_pot,
@@ -175,12 +176,12 @@ class TJEventEmitter(PokerEventHandler):
                 our_turn = False
 
         if our_turn != self.our_turn and our_turn:
-            self.__emit_our_turn(image, current_hand, community_cards)
+            self.__emit_our_turn(image, current_hand, community_cards, current_stage)
 
         elif our_turn == self.our_turn and our_turn:
             # check if stage has changed
             if current_stage > self.last_stage:
-                self.__emit_our_turn(image, current_hand, community_cards)
+                self.__emit_our_turn(image, current_hand, community_cards, current_stage)
         
         self.our_turn = our_turn
         self.last_stage = current_stage
