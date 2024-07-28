@@ -24,6 +24,7 @@ class TJPopupTypes:
     POST = 6
     BIG = 7
     SMALL = 8
+    FOLD = 9
 
     def to_str(self, val: int) -> str:
         if val == self.BASE:
@@ -108,6 +109,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.BASE_POPUP_BYTES = None
         self.BIG_POPUP_BYTES = None
         self.SMALL_POPUP_BYTES = None
+        self.FOLD_POPUP_BYTES = None
 
         self.PLUS_BUTTON_BYTES = None
 
@@ -124,7 +126,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.MAIN_POT_BYTES = self.load_image("mainpot.png")
         self.SIDE_POT_BYTES = self.load_image("sidepot.png")
 
-        self.BASE_POPUP_BYTES = self.load_image("basepopup1.png", cv2.IMREAD_UNCHANGED) # transparency
+        self.BASE_POPUP_BYTES = self.load_image("basepopup.png")
         self.CHECK_POPUP_BYTES = self.load_image("checkpopup.png")
         self.CALL_POPUP_BYTES = self.load_image("callpopup.png")
         self.BET_POPUP_BYTES = self.load_image("betpopup.png")
@@ -133,6 +135,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.POST_POPUP_BYTES = self.load_image("postpopup.png")
         self.BIG_POPUP_BYTES = self.load_image("bigpopup.png")
         self.SMALL_POPUP_BYTES = self.load_image("smallpopup.png")
+        self.FOLD_POPUP_BYTES = self.load_image("foldpopup.png")
         self.PLUS_BUTTON_BYTES = self.load_image("plusbutton.png")
 
         self.POPUP_BYTES = [
@@ -144,7 +147,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             self.ALLIN_POPUP_BYTES,
             self.POST_POPUP_BYTES,
             self.BIG_POPUP_BYTES,
-            self.SMALL_POPUP_BYTES
+            self.SMALL_POPUP_BYTES,
+            self.FOLD_POPUP_BYTES
         ]
 
         self.__POPUP_DICT = {
@@ -156,7 +160,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             TJPopupTypes.ALLIN: self.ALLIN_POPUP_BYTES,
             TJPopupTypes.POST: self.POST_POPUP_BYTES,
             TJPopupTypes.BIG: self.BIG_POPUP_BYTES,
-            TJPopupTypes.SMALL: self.SMALL_POPUP_BYTES
+            TJPopupTypes.SMALL: self.SMALL_POPUP_BYTES,
+            TJPopupTypes.FOLD: self.FOLD_POPUP_BYTES,
         }
 
     def ident_near_popup(self, img, loc: tuple[int, int, int, int]):
