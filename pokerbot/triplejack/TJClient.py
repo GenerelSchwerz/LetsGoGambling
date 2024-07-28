@@ -71,8 +71,8 @@ def main():
 
     os.makedirs("./midrun", exist_ok=True)
 
-    for file in os.listdir("./midrun"):
-        os.remove(f"./midrun/{file}")
+    # for file in os.listdir("./midrun"):
+    #     os.remove(f"./midrun/{file}")
 
     from concurrent.futures import ThreadPoolExecutor
 
