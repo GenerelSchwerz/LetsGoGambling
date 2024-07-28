@@ -345,7 +345,7 @@ class TJInteract(PokerInteract):
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
 
-        press_plus = self.detector.plus_button(ss, threshold=0.95)
+        press_plus = self.detector.plus_button(ss, threshold=0.8)
         if press_plus is None:
             print("Could not find plus button")
             return False
@@ -353,11 +353,11 @@ class TJInteract(PokerInteract):
 
         self.__canvas_click(*mid(press_plus), clicks)
         
-        button = self.detector.bet_button(ss, threshold=0.95)
+        button = self.detector.bet_button(ss, threshold=0.8)
         if button is None:
-            button = self.detector.raise_button(ss, threshold=0.95) # r u working on ocr also did you see my other comment
+            button = self.detector.raise_button(ss, threshold=0.8)
             if button is None:
-                button = self.detector.allin_button(ss, threshold=0.95)
+                button = self.detector.allin_button(ss, threshold=0.8)
                 if button is None:
                     return False
 
@@ -372,7 +372,7 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.raise_button(ss, threshold=0.95)
+        button = self.detector.raise_button(ss, threshold=0.8)
 
         if button is None:
             return False
@@ -387,7 +387,7 @@ class TJInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        button = self.detector.check_button(ss, threshold=0.95)
+        button = self.detector.check_button(ss, threshold=0.8)
 
         if button is None:
             return False
@@ -402,7 +402,7 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.fold_button(ss, threshold=0.95)
+        button = self.detector.fold_button(ss, threshold=0.8)
 
         if button is None:
             return False
@@ -419,7 +419,7 @@ class TJInteract(PokerInteract):
             ss = self._ss()
 
 
-        button = self.detector.call_button(ss, threshold=0.95)
+        button = self.detector.call_button(ss, threshold=0.8)
 
         if button is None:
             return False
