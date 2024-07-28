@@ -227,7 +227,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         left = self.seat_loc[0] + 56
         top = self.seat_loc[1] + 63
         right = left + 77
-        bottom = top + 27
+        bottom = top + 37
+
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
         return pretty_str_to_int(number)
 
