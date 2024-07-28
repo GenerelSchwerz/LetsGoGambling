@@ -40,6 +40,6 @@ def create_tj_driver(headless=False, firefox=False):
             driver = webdriver.Chrome(options=options)
 
     driver.set_window_position(0, 0)
-    driver.set_window_size(1920, 1080, windowHandle="current")
+    driver.set_window_size(1886, 1056, windowHandle="current")
 
     return driver
