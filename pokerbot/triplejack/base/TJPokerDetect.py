@@ -277,7 +277,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         left = center_x + 20
         top = self.seat_loc[1] - (height * 2)
         right = center_x + 140
-        bottom = self.seat_loc[1] - (height // 5)
+        bottom = self.seat_loc[1]
 
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
         return pretty_str_to_int(number)
@@ -331,7 +331,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         ret = []
 
         for popup in self.POPUP_BYTES:
-            for loc in self.template_detect(img, popup, threshold=0.95):
+            for loc in self.template_detect(img, popup, threshold=0.9):
                 ret.append(self.ident_near_popup(img, loc))
         
         return ret
