@@ -563,16 +563,18 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 # cv2.destroyAllWindows()
 
                 if text == "":
+                    cv2.imwrite(f"error-{time.time()}.png", img)
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite("error.png", img)
+                    cv2.imwrite(f"error-{time.time()}_2.png", img)
                     raise ValueError("OCR failed to find card's text")
 
                 try:
                     ret.append((Card.new(full_card_str), loc))
                 except KeyError as e:
+                    cv2.imwrite(f"error-{time.time()}.png", img)
                     cv2.putText(img, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite("error.png", img)
+                    cv2.imwrite(f"error-{time.time()}_2.png", img)
                     raise e
 
 
