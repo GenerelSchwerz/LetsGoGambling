@@ -352,9 +352,9 @@ class PokerImgDetect:
             contrasted_img = ImageEnhance.Contrast(img).enhance(contrast)
             image = np.array(contrasted_img)
 
-        cv2.imshow("img", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
         distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
