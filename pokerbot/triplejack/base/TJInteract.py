@@ -259,7 +259,6 @@ class TJInteract(PokerInteract):
         
         averages = [((pt[0] + pt[2]) // 2, ((pt[1] + pt[3]) // 2)) for pt in locations]
         selection = random.choice(averages)
-        self.detector.set_seat_loc(selection)
 
         self.__canvas_click(*selection)
 

@@ -1,8 +1,10 @@
 # lazy code for now
-
-
+import json
 import math
 from typing import Union
+
+import pytesseract
+
 from ...abstract import PokerDetection
 from ...abstract.impl import *
 from cv2.typing import MatLike
@@ -223,16 +225,59 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_hole_suits(ss2, threshold, subsection)
 
-    def set_seat_loc(self, loc: tuple[int, int]):
-        self.seat_loc = (loc[0], int(loc[1] * 0.81))
+    def set_seat_loc(self, img: MatLike):
+        image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsv_image = np.float32(image)
+
+        # if S value is above 10, set V to 0
+        hsv_image[:, :, 2] = np.where(hsv_image[:, :, 1] > 20, 0, hsv_image[:, :, 2])
+        hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
+
+        hsv_image = np.uint8(hsv_image)
+        image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+
+        # filter out the color [68, 68, 68], inactive player gray
+        mask = cv2.inRange(image, np.array([0, 0, 0]), np.array([83, 83, 83]))
+        image[mask != 0] = [0, 0, 0]
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # there's no HSV2GRAY
+
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        binary = cv2.bitwise_not(binary)
+
+        binary = self.erase_edges(binary)
+
+        # print(pytesseract.pytesseract.tesseract_cmd)
+        # print(pytesseract.image_to_boxes(binary))
+        data = pytesseract.image_to_data(binary, output_type=pytesseract.Output.DICT)
+
+        with open("pokerbot/config.json", "r") as f:
+            config = json.load(f)
+        username = config["triplejack"]["accounts"][0]["username"]
+
+        if username in data["text"]:
+            index = data["text"].index(username)
+            left = data["left"][index]
+            top = data["top"][index]
+            right = left + data["width"][index]
+            bottom = top + data["height"][index]
+            self.seat_loc = (left, top, right, bottom)
+        else:
+            raise RuntimeError("Couldn't find username")
 
     def stack_size(self, img: MatLike) -> int:
         if self.seat_loc is None:
-            raise ValueError("seat_loc not set")
-        left = self.seat_loc[0] + 56
-        top = self.seat_loc[1] + 63
-        right = left + 77
-        bottom = top + 37
+            self.set_seat_loc(img)
+            if self.seat_loc is None:
+                print("Couldn't find name location")
+                return 999999
+        center_x = (self.seat_loc[0] + self.seat_loc[2]) // 2
+        height = self.seat_loc[3] - self.seat_loc[1]
+        left = center_x + 20
+        top = self.seat_loc[1] - (height * 2)
+        right = center_x + 140
+        bottom = self.seat_loc[1] - (height // 5)
 
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
         return pretty_str_to_int(number)
@@ -541,7 +586,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                         loc[0] - w // 6,
                         loc[1] - h - h // 5,
                         loc[2] + w // 6,
-                        loc[3] - h - 5,
+                        loc[3] - h,
                     )
                 else:
                     text_area = (
@@ -552,7 +597,12 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     )
 
               
-                text = self.ocr_text_from_image(img, text_area, psm=7, contrast=1.5, black_text=True)
+                text = self.ocr_text_from_image(img,
+                                                text_area,
+                                                psm=7,
+                                                contrast=1.5,
+                                                black_text=True,
+                                                rotation_angle=3 if hole else 0)
       
                 loc = text_area
 
