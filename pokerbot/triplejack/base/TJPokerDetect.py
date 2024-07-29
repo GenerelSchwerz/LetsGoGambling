@@ -1,7 +1,7 @@
 # lazy code for now
 import json
 import math
-from typing import Union
+from typing import Union, List, Tuple
 
 import pytesseract
 
@@ -75,7 +75,7 @@ class TJPopupTypes:
 
 class TJPokerDetect(PokerImgDetect, PokerDetection):
 
-    def __init__(self) -> None:
+    def __init__(self, username: str) -> None:
         super().__init__(
             opts=PokerImgOpts(
                 folder_path="pokerbot/triplejack/base/imgs",
@@ -117,9 +117,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
         self.POPUP_BYTES = []
         self.__POPUP_DICT = {}
-    
 
-        self.seat_loc = None
+        self.name_loc = None
+        self.username = username
 
     def load_images(self):
         super().load_images()
@@ -225,7 +225,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         _, ss2 = cv2.threshold(ss2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return super().find_hole_suits(ss2, threshold, subsection)
 
-    def set_seat_loc(self, img: MatLike):
+    def set_name_loc(self, img: MatLike):
         image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsv_image = np.float32(image)
 
@@ -251,10 +251,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # print(pytesseract.pytesseract.tesseract_cmd)
         # print(pytesseract.image_to_boxes(binary))
         data = pytesseract.image_to_data(binary, output_type=pytesseract.Output.DICT)
-
-        with open("pokerbot/config.json", "r") as f:
-            config = json.load(f)
-        username = config["triplejack"]["accounts"][0]["username"]
+        username = self.username
 
         if username in data["text"]:
             index = data["text"].index(username)
@@ -262,22 +259,22 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             top = data["top"][index]
             right = left + data["width"][index]
             bottom = top + data["height"][index]
-            self.seat_loc = (left, top, right, bottom)
+            self.name_loc = (left, top, right, bottom)
         else:
             raise RuntimeError("Couldn't find username")
 
     def stack_size(self, img: MatLike) -> int:
-        if self.seat_loc is None:
-            self.set_seat_loc(img)
-            if self.seat_loc is None:
-                print("Couldn't find name location")
+        if self.name_loc is None:
+            self.set_name_loc(img)
+            if self.name_loc is None:
+                print("Name location is None")
                 return 999999
-        center_x = (self.seat_loc[0] + self.seat_loc[2]) // 2
-        height = self.seat_loc[3] - self.seat_loc[1]
+        center_x = (self.name_loc[0] + self.name_loc[2]) // 2
+        height = self.name_loc[3] - self.name_loc[1]
         left = center_x + 20
-        top = self.seat_loc[1] - (height * 2)
+        top = self.name_loc[1] - (height * 2)
         right = center_x + 140
-        bottom = self.seat_loc[1]
+        bottom = self.name_loc[1]
 
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
         return pretty_str_to_int(number)
@@ -376,7 +373,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 else:
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
-    def table_players(self, img: MatLike) -> list:
+    def table_players(self, img: MatLike) -> List[Tuple[Tuple[int, int, int, int], str]]:
         # convert from BGR to RGB
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         filter_colors = np.array([
@@ -487,7 +484,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             left = x1
             right = x2
             name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=0.5, contrast=2, allowed_chars=False, scale=50)
-            players.append(name)
+            players.append(((left, top, right, bottom), name))
         return players
 
     def active_players(self, img: MatLike) -> list:

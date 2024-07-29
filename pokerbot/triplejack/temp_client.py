@@ -302,7 +302,7 @@ class NewPokerBot:
 
         averages = [((pt[0] + pt[2]) // 2, ((pt[1] + pt[3]) // 2)) for pt in locations]
         selection = averages[random.randint(0, len(averages) - 1)]
-        self.detector.set_seat_loc(selection)
+        self.detector.set_name_loc(selection)
 
         # cv2.rectangle(ss_good, (selection[0], selection[1]), (selection[0] + 10, selection[1] + 10), (0, 255, 0), 2)
         # cv2.imshow("Sit Buttons", ss_good)

@@ -35,7 +35,7 @@ def launch_user(
 ):
     from ..all.algoLogic import AlgoDecisions
 
-    detector = TJPokerDetect()
+    detector = TJPokerDetect(username)
     detector.load_images()
 
     event_handler = TJEventEmitter(detector=detector)
