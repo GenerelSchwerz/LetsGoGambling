@@ -352,9 +352,9 @@ class PokerImgDetect:
             contrasted_img = ImageEnhance.Contrast(img).enhance(contrast)
             image = np.array(contrasted_img)
 
-        # cv2.imshow("img", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("img", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
         distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
@@ -391,9 +391,9 @@ class PokerImgDetect:
         binary = self.erase_edges(binary)
         binary = self.eliminate_isolated_pixels(binary)
 
-        # cv2.imshow("img", binary)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("img", binary)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
