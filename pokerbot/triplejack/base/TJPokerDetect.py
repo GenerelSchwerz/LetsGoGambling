@@ -536,45 +536,48 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             for loc in locs:
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
 
-                text_area = (
-                    loc[0] - w // 6,
-                    loc[1] - h - h // 6,
-                    loc[2] + w // 6,
-                    loc[3] - h,
-                ) 
+                if hole:
+                    text_area = (
+                        loc[0] - w // 6,
+                        loc[1] - h - h // 5,
+                        loc[2] + w // 6,
+                        loc[3] - h - 5,
+                    )
+                else:
+                    text_area = (
+                        loc[0] - w // 6,
+                        loc[1] - h - h // 6,
+                        loc[2] + w // 6,
+                        loc[3] - h,
+                    )
 
               
                 text = self.ocr_text_from_image(img, text_area, psm=7, contrast=1.5)
       
-                loc = (
-                    loc[0] - w // 6,
-                    loc[1] - h - h // 6,
-                    loc[2] + w // 6,
-                    loc[3],
-                )
+                loc = text_area
 
                 full_card_str = f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"
 
-                img1 = cv2.rectangle(img.copy(), (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
-                cv2.putText(img1, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                # img1 = cv2.rectangle(img.copy(), (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+                # cv2.putText(img1, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
                 # cv2.imshow("img", img1)
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
 
                 if text == "":
-                    cv2.imwrite(f"error-{time.time()}.png", img)
+                    cv2.imwrite(f"error-{int(time.time())}.png", img)
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite(f"error-{time.time()}_2.png", img)
+                    cv2.imwrite(f"error-{int(time.time())}_2.png", img)
                     raise ValueError("OCR failed to find card's text")
 
                 try:
                     ret.append((Card.new(full_card_str), loc))
                 except KeyError as e:
-                    cv2.imwrite(f"error-{time.time()}.png", img)
+                    cv2.imwrite(f"error-{int(time.time())}.png", img)
                     cv2.putText(img, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                     cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite(f"error-{time.time()}_2.png", img)
+                    cv2.imwrite(f"error-{int(time.time())}_2.png", img)
                     raise e
 
 
