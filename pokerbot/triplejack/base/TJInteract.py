@@ -328,7 +328,7 @@ class TJInteract(PokerInteract):
             with open(f"./midrun/ss-{idx}.png", "wb") as f:
                 f.write(self.driver.get_screenshot_as_png())
             
-            print(img.shape)
+            # print(img.shape)
             return img
         except Exception as e:
             return None

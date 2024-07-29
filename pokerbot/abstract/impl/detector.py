@@ -391,9 +391,9 @@ class PokerImgDetect:
         binary = self.erase_edges(binary)
         binary = self.eliminate_isolated_pixels(binary)
 
-        cv2.imshow("img", binary)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
