@@ -299,6 +299,7 @@ class PokerImgDetect:
                             rotation_angle=0,
                             psm=7,
                             invert=False,
+                            black_text=False,
                             erode=False,
                             brightness=0.0,
                             contrast=0.0,
@@ -327,11 +328,21 @@ class PokerImgDetect:
             # set any value above 192 to 255
             # hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] > 192, 255, hsv_image[:, :, 2])
 
-            # ensure that the HSV values are in the valid range
+
+            hsv_image = np.uint8(hsv_image)
+            image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+
+        if black_text:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            hsv_image = np.float32(image)
+
+            # scale up the V value adjustments based on S value
+            hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (1.5 * (hsv_image[:, :, 1] / 255)))
             hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
 
             hsv_image = np.uint8(hsv_image)
             image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+
 
         if brightness > 0.0:
             image = cv2.convertScaleAbs(image, alpha=brightness, beta=0)

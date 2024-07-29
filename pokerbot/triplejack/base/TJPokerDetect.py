@@ -552,7 +552,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     )
 
               
-                text = self.ocr_text_from_image(img, text_area, psm=7, contrast=1.5)
+                text = self.ocr_text_from_image(img, text_area, psm=7, contrast=1.5, black_text=True)
       
                 loc = text_area
 
