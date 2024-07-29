@@ -69,7 +69,7 @@ class TJEventEmitter(PokerEventHandler):
 
         table_players = self.detector.table_players(img)
 
-        active_players = [] #self.detector.active_players(img)
+        active_players = self.detector.active_players(img)
 
         print("[OUR TURN] table:", table_players, "active:", active_players, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
 
@@ -82,7 +82,7 @@ class TJEventEmitter(PokerEventHandler):
                     mid_pot,
                     total_pot,
                     self.detector.stack_size(img),
-                    len(self.detector.active_players(img)) - 1 # exclude us
+                    len(active_players) - 1  # exclude us
                   )
         # self.our_turn = True # slightly redundant code as this should only ever be called if this is supposed to be true.
         

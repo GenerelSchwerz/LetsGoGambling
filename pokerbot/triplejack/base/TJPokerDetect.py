@@ -17,6 +17,8 @@ from treys import Card
 
 from .utils import *
 
+import os
+import time
 
 class TJPopupTypes:
     BASE = 0
@@ -378,28 +380,37 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
     def table_players(self, img: MatLike, active=False) -> List[Tuple[Tuple[int, int, int, int], str]]:
         # convert from BGR to RGB
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # crop bottom 20% of image off
+        rgb_img = rgb_img[:int(rgb_img.shape[0] * 0.8)]
+
         if not active:
             filter_colors = [
                 [68, 68, 68],  # inactive player gray
                 [48, 192, 86],  # active player green
                 [28, 43, 53],  # action player gray
+                [57, 72, 82],  # action player gray brightened by glow
+                [45, 60, 70],  # action player gray brightened by glow
             ]
         else:
             filter_colors = [
                 [48, 192, 86],  # active player green
                 [28, 43, 53],  # action player gray
+                [57, 72, 82],  # action player gray brightened by glow
+                [45, 60, 70],  # action player gray brightened by glow
             ]
-        # filter_colors.extend([[x, x, x] for x in range(235, 256)])
-        # filter_colors = np.array(filter_colors)
+            filter_colors.extend([[x, x, x] for x in range(235, 256)])
+            filter_colors = np.array(filter_colors)
 
         mask = np.zeros_like(rgb_img[:, :, 0], dtype=bool)
 
         for color in filter_colors:
-            color_mask = np.all(rgb_img == color, axis=-1)
-            mask = mask | color_mask
+            distance_mask = np.linalg.norm(rgb_img - color, axis=-1) <= 4
+            mask = mask | distance_mask
 
         filtered_image = np.zeros_like(rgb_img)
         filtered_image[mask] = rgb_img[mask]
+
         modified_img = filtered_image
 
         gray = cv2.cvtColor(modified_img, cv2.COLOR_RGB2GRAY)
@@ -413,34 +424,47 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             if white_pixel_count < 75:
                 binary[row][binary[row] == 255] = 0
 
-        kernel = np.concatenate([np.ones(100), np.zeros(100)])
-        kernel = np.expand_dims(kernel, 0)
-        left_conv = convolve(binary == 255, kernel, mode='constant') > 0
-        kernel = kernel[:, ::-1]
-        right_conv = convolve(binary == 255, kernel, mode='constant') > 0
-        binary = binary.astype(np.uint8)
-        binary[(binary == 0) & (left_conv == True) & (right_conv == True)] = 255
+        for i in range(3):
+            kernel = np.concatenate([np.ones(19), np.zeros(19)])
+            kernel = np.expand_dims(kernel, 0)
+            left_conv = convolve(binary == 255, kernel, mode='constant') > 0
+            kernel = kernel[:, ::-1]
+            right_conv = convolve(binary == 255, kernel, mode='constant') > 0
+            binary = binary.astype(np.uint8)
+            binary[(binary == 0) & (left_conv == True) & (right_conv == True)] = 255
 
-        kernel = np.array([[0, 1/3, 0],
-                           [0, 1/3, 0],
-                           [0, 1/3, 0]])
-        convolved_image = convolve(binary, kernel)
-        binary = np.where(convolved_image != 255, 0, binary)
+        for i in range(1):
+            kernel = np.array([[0, 1 / 3, 0],
+                               [0, 1 / 3, 0],
+                               [0, 1 / 3, 0]])
+            convolved_image = convolve(binary, kernel)
+            binary = np.where(convolved_image == 170, 0, binary)
 
         # show binary
         # cv2.imshow("img", binary)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=100, minLineLength=200, maxLineGap=40)
+        lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=75, minLineLength=200, maxLineGap=37)
         if lines is None:
             return []
-        
-        
+
+        # debug_image = modified_img.copy()
+        # for line in lines:
+        #     x1, y1, x2, y2 = line[0]
+        #     cv2.line(debug_image, (x1, y1), (x2, y2), (64, 255, 64), 1)
+        # cv2.imshow("img", debug_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         # filter out lines of length more than 260
         lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 260, lines))
         # filter out lines whose y1 and y2 arent within 5 pixels
-        lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 5, lines))
+        lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 8, lines))
+        # average y values
+        for line in lines:
+            line[0][1] = (line[0][1] + line[0][3]) // 2
+            line[0][3] = line[0][1]
 
         # debug_image = modified_img.copy()
         # for line in lines:
@@ -505,7 +529,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             bottom = y1 + 15
             left = x1
             right = x2
-            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1, allowed_chars=False, scale=50)
+            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, allowed_chars=False, scale=50)
             players.append(((left, top, right, bottom), name))
         return players
 
@@ -742,8 +766,6 @@ if __name__ == "__main__":
 
     detect = TJPokerDetect()
     detect.load_images()
-    import os
-    import time
 
     folder = "pokerbot/triplejack/base/tests"
     # for all files in a directory, run the report_info function
