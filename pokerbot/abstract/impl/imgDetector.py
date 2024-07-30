@@ -307,6 +307,7 @@ class PokerImgDetect:
                             brightness=0.0,
                             contrast=0.0,
                             allowed_chars=True,
+                            similarity_factor=True,
                             scale=40):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
@@ -359,12 +360,13 @@ class PokerImgDetect:
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
-        distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
-        similarity_factor = np.sum(distances <= 7) / (image.shape[0] * image.shape[1])
-        if similarity_factor > 0.94:
-            print(f'Image is mostly the same color as center pixel, returning empty string {similarity_factor}')
-            return ''
+        if similarity_factor:
+            center_pixel = image[image.shape[0] // 2, image.shape[1] // 2]
+            distances = np.linalg.norm(image.astype(float) - center_pixel, axis=2)
+            similarity_factor = np.sum(distances <= 7) / (image.shape[0] * image.shape[1])
+            if similarity_factor > 0.94:
+                print(f'Image is mostly the same color as center pixel, returning empty string {similarity_factor}')
+                return ''
 
         # TODO this is occasionally failing. I don't know why
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -393,12 +395,6 @@ class PokerImgDetect:
 
         binary = self.erase_edges(binary)
         binary = self.eliminate_isolated_pixels(binary)
-
-        if psm == 6:
-            cv2.imshow("img", binary)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
         if allowed_chars:

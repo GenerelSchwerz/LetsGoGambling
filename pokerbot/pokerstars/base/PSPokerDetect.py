@@ -5,6 +5,8 @@ from typing import Union, List, Tuple
 
 import pytesseract
 
+from ...all.windows import AWindowManager
+
 from ...abstract.pokerDetection import Player
 from ...abstract import PokerDetection
 from ...abstract.impl import *
@@ -18,65 +20,11 @@ from ...all.utils import *
 
 
 def pretty_str_to_int(s: str) -> int:
-    return int(s.replace(",", "").replace("$", "").replace(" ", "").replace(".", ""))
-
-
-class TJPopupTypes:
-    BASE = 0
-    CHECK = 1
-    CALL = 2
-    BET = 3
-    RAISE = 4
-    ALLIN = 5
-    POST = 6
-    BIG = 7
-    SMALL = 8
-    FOLD = 9
-
-    def to_str(self, val: int) -> str:
-        if val == self.BASE:
-            return "BASE"
-        elif val == self.CHECK:
-            return "CHECK"
-        elif val == self.CALL:
-            return "CALL"
-        elif val == self.BET:
-            return "BET"
-        elif val == self.RAISE:
-            return "RAISE"
-        elif val == self.ALLIN:
-            return "ALLIN"
-        elif val == self.POST:
-            return "POST"
-        elif val == self.BIG:
-            return "BIG"
-        elif val == self.SMALL:
-            return "SMALL"
-        else:
-            return "UNKNOWN"
-
-    def from_str(self, val: str) -> int:
-        if val == "BASE":
-            return self.BASE
-        elif val == "CHECK":
-            return self.CHECK
-        elif val == "CALL":
-            return self.CALL
-        elif val == "BET":
-            return self.BET
-        elif val == "RAISE":
-            return self.RAISE
-        elif val == "ALLIN":
-            return self.ALLIN
-        elif val == "POST":
-            return self.POST
-        elif val == "BIG":
-            return self.BIG
-        elif val == "SMALL":
-            return self.SMALL
-        else:
-            return -1
-
+    try:
+        return int(s.replace(",", "").replace("$", "").replace(" ", "").replace(".", ""))
+    except ValueError:
+        print(f"Could not convert number to int: {s}")
+        return 0
 
 class PSPokerDetect(PokerImgDetect, PokerDetection):
 
@@ -320,27 +268,17 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
             raise RuntimeError("Couldn't find username")
 
     def stack_size(self, img: MatLike) -> int:
-        if self.name_loc is None:
-            self.set_name_loc(img)
-            if self.name_loc is None:
-                print("Name location is None")
-                return 999999
-        center_x = (self.name_loc[0] + self.name_loc[2]) // 2
-        height = self.name_loc[3] - self.name_loc[1]
-        left = center_x + 20
-        top = self.name_loc[1] - (height * 2)
-        right = center_x + 140
-        bottom = self.name_loc[1]
+        """
+        Due to PokerStars having a scalable screen and always sitting us as the bottom,
+        We are able to hardcode the hell out of this.
+        """
 
-        number = self.ocr_text_from_image(
-            img,
-            (left, top, right, bottom),
-            invert=True,
-            brightness=0.5,
-            contrast=3,
-            erode=True,
+        w, h = img.shape[1], img.shape[0]
+        subsection = (w // 16 * 6, h // 32 * 24, w // 16 * 9, h // 32 * 25)
+        text = self.ocr_text_from_image(
+            img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
         )
-        return pretty_str_to_int(number)
+        return pretty_str_to_int(text)
 
     def middle_pot(self, img: MatLike) -> int:
 
@@ -436,7 +374,7 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
             # cv2.destroyAllWindows()
 
             left_ret = self.template_detect(
-                check_area, self.POPUP_LEFT_BYTES, threshold=0.95
+                check_area, self.POPUP_LEFT_BYTES, threshold=0.9
             )
 
             if len(left_ret) != 0:
@@ -463,7 +401,7 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
 
             else:
                 right_ret = self.template_detect(
-                    check_area, self.POPUP_RIGHT_BYTES, threshold=0.95
+                    check_area, self.POPUP_RIGHT_BYTES, threshold=0.9
                 )
                 if len(right_ret) != 0:
                     # correct off
@@ -499,69 +437,33 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
 
     def current_bet(self, img: MatLike) -> int:
         # TODO: obsolesce this method by tracking player bet and max of current_bets()
-        check_button = self.check_button(img)
-        if check_button is not None:
-            return 0
-        else:
-            call_button = self.call_button(img)
-            if call_button is not None:
-                loc = (
-                    call_button[0] - 10,
-                    call_button[3],
-                    call_button[2] + 10,
-                    call_button[3] + (call_button[3] - call_button[1]) + 3,
-                )
-                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
-            else:
-                allin_button = self.allin_button(img)
-                if allin_button is not None:
-                    loc = (
-                        allin_button[0] - 10,
-                        allin_button[3],
-                        allin_button[2] + 10,
-                        allin_button[3] + (allin_button[3] - allin_button[1]) + 3,
-                    )
-                    return pretty_str_to_int(
-                        self.ocr_text_from_image(img, loc, contrast=3)
-                    )
-                else:
-                    raise RuntimeError("Not my turn or couldn't find current bet")
+        return max(self.current_bets(img))
 
     def min_bet(self, img: MatLike) -> int:
         # when you call this, check if current_bet >= stack_size, if it is, save time by not calling this method
         bet_button = self.bet_button(img)
         if bet_button is not None:
+            w, h = bet_button[2] - bet_button[0], bet_button[3] - bet_button[1]
             loc = (
                 bet_button[0] - 10,
                 bet_button[3],
                 bet_button[2] + 10,
-                bet_button[3] + (bet_button[3] - bet_button[1]) + 3,
+                bet_button[3] + (bet_button[3] - bet_button[1]) * 2
+            )
+
+            return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+        elif (raise_button := self.raise_button(img)) is not None:
+            
+        
+            loc = (
+                raise_button[0] - 10,
+                raise_button[3],
+                raise_button[2] + 10,
+                raise_button[3] + (raise_button[3] - raise_button[1]) * 2,
             )
             return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
-        else:
-            raise_button = self.raise_button(img)
-            if raise_button is not None:
-                loc = (
-                    raise_button[0] - 10,
-                    raise_button[3],
-                    raise_button[2] + 10,
-                    raise_button[3] + (raise_button[3] - raise_button[1]) + 3,
-                )
-                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
-            else:
-                allin_button = self.allin_button(img)
-                if allin_button is not None:
-                    loc = (
-                        allin_button[0] - 10,
-                        allin_button[3],
-                        allin_button[2] + 10,
-                        allin_button[3] + (allin_button[3] - allin_button[1]) + 3,
-                    )
-                    return pretty_str_to_int(
-                        self.ocr_text_from_image(img, loc, contrast=3)
-                    )
-                else:
-                    raise RuntimeError("Not my turn or couldn't find current bet")
+        else:   
+            raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(
         self, img: MatLike
@@ -587,7 +489,7 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
             
             # player info is to the left
             sections.append((
-                loc[0] - w * 5,
+                loc[0] - w * 5 - w // 2, # lazy fix
                 loc[1] - 5,
                 loc[2],
                 loc[3] + 5,
@@ -596,9 +498,10 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
         for section in sections:
             w, h = section[2] - section[0], section[3] - section[1]
 
-            # tot_bright = np.sum(img2[section[1] : section[3], section[0] : section[2]]) // (3 * w * h)
+            tot_bright = np.sum(img2[section[1] : section[3], section[0] : section[2]]) // (3 * w * h)
 
-            active = False # tot_bright > 200
+            print(tot_bright)
+            active = tot_bright > 30
 
             # name in top half of section
             subsection = (section[0], section[1], section[2], section[1] + h // 2)
@@ -610,11 +513,12 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
             # stack size in bottom half of section
             subsection = (section[0], section[1] + h // 2, section[2], section[3])
             stack_size = self.ocr_text_from_image(
-                img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
+                img, subsection, invert=True, brightness=0.5, contrast=3, erode=False, similarity_factor=False
             )
 
             if stack_size == "":
-                stack_size = 0
+                # only happens when a player is disconnected or sitting out, so we'll essentially ignore them.
+                continue
             else:
                 stack_size = pretty_str_to_int(stack_size)
 
@@ -802,6 +706,7 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     now = time.time()
 
+
     info = []
 
     info = detector.community_cards_and_locs(img)
@@ -871,6 +776,7 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
     tot_pot = 0
     current_bets = []
     current_bet = 0
+    min_bet = 0
     active_players = []
     table_players = []
 
@@ -888,15 +794,19 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     table_players = detector.table_players(img)
 
-    print(table_players)
+    print("players: \n",table_players, len(table_players))
+    
 
     for player, loc in table_players:
-        cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        color = (0, 255, 0) if player.active else (0, 0, 255)
+        cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
+    min_bet = detector.min_bet(img)
 
+    print("min bet", min_bet)
 
     filename = ss if isinstance(ss, str) else "current image"
 
@@ -926,7 +836,7 @@ if __name__ == "__main__":
     files.reverse()
     print(folder, files)
     for filename in files:
-        if filename.endswith(".png") and "card" in filename:
+        if filename.endswith(".png") and "cards1" in filename:
             path = os.path.join(folder, filename)
             print("running report_info on", path)
 

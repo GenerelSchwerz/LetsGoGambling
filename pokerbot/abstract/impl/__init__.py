@@ -1,1 +1,1 @@
-from .detector import PokerImgDetect, PokerImgOpts
+from .imgDetector import PokerImgDetect, PokerImgOpts
