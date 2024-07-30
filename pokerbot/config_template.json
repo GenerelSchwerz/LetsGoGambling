@@ -10,5 +10,12 @@
     ],
     "secondsPerTick": 2,
     "headless": true
+  },
+  "pokerstars": {
+    "account": {
+      "username": "<here>",
+      "password": "<here>"
+    },
+    "exec_path": "<here>"
   }
 }

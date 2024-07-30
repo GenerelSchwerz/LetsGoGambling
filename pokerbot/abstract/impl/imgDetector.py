@@ -386,9 +386,7 @@ class PokerImgDetect:
         # Apply binary thresholding
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # cv2.imshow("img", binary)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+      
 
         if invert:
             binary = cv2.bitwise_not(binary)
@@ -397,12 +395,16 @@ class PokerImgDetect:
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         if allowed_chars:
             config = CUSTOM_CONFIG.format(psm=psm)
         else:
             config = '--oem 3 --psm {psm}'.format(psm=psm)
         result = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
-   
+
         # can you tell what number has given me hours of trouble with tesseract and TJ font
         if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", ]):
             return '10'

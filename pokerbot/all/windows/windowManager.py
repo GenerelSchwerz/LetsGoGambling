@@ -6,6 +6,9 @@ Get the window size and position of the poker window.
 Get the full title of the window.
 """
 
+import cv2
+import time
+
 from abc import ABC, abstractmethod
 class AWindowManager(ABC):
     def __init__(self, id: int = None, title: str = None):
@@ -43,7 +46,7 @@ class AWindowManager(ABC):
         pass
 
     @abstractmethod
-    def ss(self):
+    def ss(self) -> cv2.typing.MatLike:
         pass
 
 
@@ -79,6 +82,8 @@ class UnixWindowManager(AWindowManager):
 
     Check for xdotool.
     """
+    DEFAULT_HEIGHT = 720
+    DEFAULT_WIDTH = 1080
 
     def is_valid(self) -> bool:
         try:
@@ -96,6 +101,8 @@ class UnixWindowManager(AWindowManager):
         self.window_id = window_id
         self.window_title = title
 
+        resize_window_id(self.window_id, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
+
     def assign_to_window_title(self, window_title: str):
         window_id = get_all_windows_matching(window_title)
 
@@ -107,6 +114,8 @@ class UnixWindowManager(AWindowManager):
 
         self.window_id = window_id[0]
         self.window_title = window_title
+
+        resize_window_id(self.window_id, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
 
     def get_window_dimensions(self) -> tuple[int, int, int, int]:
         return get_window_id_dimensions(self.window_id)
@@ -127,5 +136,5 @@ class UnixWindowManager(AWindowManager):
         time.sleep(time_delay)
         ss = screenshot_window_id(self.window_id)
 
-        move_window_id_to_background(self.window_id)
+        # move_window_id_to_background(self.window_id)
         return ss

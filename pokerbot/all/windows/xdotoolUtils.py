@@ -19,7 +19,7 @@ def get_window_title(window_id):
         ).strip()
         return window_title
     except subprocess.CalledProcessError as e:
-        print(f"Failed to get window title: {e}")
+      # print(f"Failed to get window title: {e}")
         return None
 
 def get_all_windows_matching(title) -> list[int]:
@@ -31,7 +31,7 @@ def get_all_windows_matching(title) -> list[int]:
 
         return list(map(int, matching_windows))
     except subprocess.CalledProcessError as e:
-        print(f"Failed to get windows matching '{title}': {e}")
+      # print(f"Failed to get windows matching '{title}': {e}")
         return []
     
 def move_window_id_to_forefront(window_id):
@@ -40,9 +40,10 @@ def move_window_id_to_forefront(window_id):
             ['xdotool', 'windowactivate', str(window_id)],
             check=True
         )
-        print(f"Moved window '{window_id}' to the front.")
+      # print(f"Moved window '{window_id}' to the front.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to move window to the front: {e}")
+        pass
 
 def get_window_id_dimensions(window_id):
     try:
@@ -50,7 +51,7 @@ def get_window_id_dimensions(window_id):
             ['xdotool', 'getwindowgeometry', '--shell', str(window_id)],
             universal_newlines=True
         )
-        print(window_geometry)
+      # print(window_geometry)
 
         # return (x, y, x + width, y + height)
 
@@ -61,7 +62,7 @@ def get_window_id_dimensions(window_id):
         width = int(lines[3].split('=')[1])
         height = int(lines[4].split('=')[1])
 
-        print(f"x: {x}, y: {y}, width: {width}, height: {height}")
+      # print(f"x: {x}, y: {y}, width: {width}, height: {height}")
 
         return (x, x + width, y, y + height)
     except subprocess.CalledProcessError as e:
@@ -72,7 +73,7 @@ def screenshot_window_id(window_id):
     try:
         x1, x2, y1, y2 = get_window_id_dimensions(window_id)
         # with mss.mss() as sct:
-        #     print(sct.monitors)
+        #   # print(sct.monitors)
         #     monitor = {"top": y1, "left": x1, "width": x2 - x1, "height": y2 - y1, "mon": 0}
         #     sct_img = sct.grab(monitor)
         sct_img = ImageGrab.grab(bbox=(x1, y1, x2, y2), all_screens=True)
@@ -86,7 +87,7 @@ def move_window_id_to_background(window_id):
             ['xdotool', 'windowminimize', str(window_id)],
             check=True
         )
-        print(f"Moved window '{window_id}' to the background.")
+      # print(f"Moved window '{window_id}' to the background.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to move window to the background: {e}")
     
@@ -96,7 +97,7 @@ def move_window_id_to_display(window_id, desktop):
             ['wmctrl', '-i', '-r', str(window_id), '-t', str(desktop)],
             check=True
         )
-        print(f"Moved window '{window_id}' to desktop {desktop}.")
+      # print(f"Moved window '{window_id}' to desktop {desktop}.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to move window to display: {e}")
 
@@ -106,7 +107,7 @@ def resize_window_id(window_id, width, height):
             ['xdotool', 'windowsize', str(window_id), str(width), str(height)],
             check=True
         )
-        print(f"Resized window '{window_id}' to {width}x{height}.")
+      # print(f"Resized window '{window_id}' to {width}x{height}.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to resize window: {e}")
 
@@ -116,7 +117,7 @@ def resize_window(window_title, width, height):
         all_windows = subprocess.check_output(['xdotool', 'search', '--name', '.*'], universal_newlines=True).strip().split('\n')
         for window in all_windows:
             title = subprocess.check_output(['xdotool', 'getwindowname', window], universal_newlines=True).strip()
-            print(f"Window ID: {window}, Title: {title}")
+          # print(f"Window ID: {window}, Title: {title}")
 
         # Find the window ID using xdotool
         window_id = subprocess.check_output(
@@ -134,7 +135,7 @@ def resize_window(window_title, width, height):
             ['xdotool', 'windowsize', window_id, str(width), str(height)],
             check=True
         )
-        print(f"Resized window '{window_title} ({window_id})' to {width}x{height}.")
+      # print(f"Resized window '{window_title} ({window_id})' to {width}x{height}.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to resize window: {e}")
 
@@ -144,7 +145,7 @@ def resize_window(window_title, width, height):
 if __name__ == "__main__":
 
     ids = get_all_windows_matching(".+No Limit Hold'em.+")
-    print(ids)
+  # print(ids)
 
 
     import time

@@ -537,7 +537,7 @@ class AlgoDecisions(PokerDecisionMaking):
             threshold_players = active_opponents
 
         # calculating equity, with two special cases where equity should be 100% to save calculation
-
+        equity = 0
         if our_hand_strength == PokerHands.FULL_HOUSE:
             if self.current_stage == PokerStages.RIVER:
                 _, board_rank = evaluate_hand([], community_cards)

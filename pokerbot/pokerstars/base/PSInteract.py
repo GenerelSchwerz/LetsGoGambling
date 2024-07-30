@@ -3,7 +3,7 @@ import random
 import subprocess
 from typing import Union
 
-from ...all.windows import AWindowManager, get_all_windows_matching
+from ...all.windows import AWindowManager, UnixWindowManager, WindowsWindowManager, get_all_windows_matching
 from ...abstract.pokerInteract import PokerInteract
 from selenium import webdriver
 
@@ -15,12 +15,15 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from .PSPokerDetect import PSPokerDetect
+from .PSPokerDetect import PSPokerImgDetect
 
 import pyautogui
 
 import time
 import os
+
+import cv2
+
 from logging import Logger
 
 log = Logger("PokerBot")
@@ -30,8 +33,11 @@ def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
     return (tupl[0] + tupl[2]) // 2, (tupl[1] + tupl[3]) // 2
 
 class PSInteract(PokerInteract):
+    """
+    TODO MAJOR! Support multiple tables.
+    """
 
-    def __init__(self, detector: PSPokerDetect, path_to_exec: str):
+    def __init__(self, detector: PSPokerImgDetect, path_to_exec: str):
         super().__init__()
         
 
@@ -42,13 +48,12 @@ class PSInteract(PokerInteract):
                 raise ValueError("Detector not initialized")
         
         else:
-            self.detector = PSPokerDetect()
+            self.detector = PSPokerImgDetect()
             self.detector.load_images()
 
-        self.wm = None
-
+  
         self.path_to_exec = path_to_exec
-
+        self.wm = None
         self.ps_process = None
 
         # detect whether on windows or linux
@@ -57,13 +62,9 @@ class PSInteract(PokerInteract):
         else:
             self.linux = False
 
-        
-
-
-
     def open_pokerstars(self):
         if self.linux:
-             self.ps_process = subprocess.Popen(["gio", "launch", self.path_to_exec], stdout=None)
+             self.ps_process = subprocess.Popen(["gio", "launch", self.path_to_exec], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
              
 
     def shutdown(self):
@@ -76,10 +77,9 @@ class PSInteract(PokerInteract):
 
     def start(self, username: str, password: str):
         self.open_pokerstars()
-        self.login(username, password)
-        self.halt_until_room_select()
-        time.sleep(4) # built-in delay/transition into the website
-
+        # self.login(username, password)
+        self.wait_until_in_room()
+     
 
 
     def login(self, username: str, password: str):
@@ -96,6 +96,11 @@ class PSInteract(PokerInteract):
                 print("Halting until room select: Page is loading...")
             else:
                 break
+        
+        if self.linux:
+            ids = get_all_windows_matching(".+No Limit Hold'em.+")
+            self.wm = UnixWindowManager(id=ids[0])
+            self.detector.load_wm(self.wm)
 
 
         
@@ -106,59 +111,24 @@ class PSInteract(PokerInteract):
         return len(ids) > 0
 
 
-  
-        
+
+    def click(self, x: int, y: int, amt=1):
+        dims = self.wm.get_window_dimensions()
+        x1 = x + dims[0]
+        y1 = y + dims[2]
+
+        print(f"Clicking at {x}, {y}")
+        print(pyautogui.position())
+        pyautogui.click(x1, y1, clicks=amt, interval=0.05)
 
 
-
-
-    def __canvas_click(self, x: int, y: int, amt=1):
-        body = self.driver.find_element(By.TAG_NAME, "body")
-        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
-        bW, bH = body.size["width"], body.size["height"]
-        cX, cY = canvas.location["x"], canvas.location["y"]
-        
-        # ActionChains(self.driver).move_to_element_with_offset(body,-bW // 2 + x + cX, -bH // 2 + y + cY).click().perform()
-
-        # do X times
-        chain = ActionChains(self.driver)
-        chain.move_to_element_with_offset(body, -bW // 2 + x + cX, -bH // 2 + y + cY)
-        chain.click()
-        for i in range(amt - 1):
-            # chain.pause(0.1) # hey btw do you mind if i make the login thing use a config.json that isnt git tracked?
-            chain.click()
-        chain.perform()
-
-
-
-    def __canvas_drag(self, x1: int, y1: int, x2: int, y2: int):
-        body = self.driver.find_element(By.TAG_NAME, "body")
-        canvas = self.driver.find_element(By.TAG_NAME, "canvas")
-        bW, bH = body.size["width"], body.size["height"]
-        cX, cY = canvas.location["x"], canvas.location["y"]
-
-        ActionChains(self.driver) \
-            .move_to_element_with_offset(body, -bW // 2 + x1 + cX, -bH // 2 + y1 + cY) \
-            .click_and_hold() \
-            .move_by_offset(x2 - x1, y2 - y1) \
-            .release().perform()
 
     def _ss(self):  # why not make this a class property/field that is updated once per tick? - amelia
-        try:
-            el = self.driver.find_element(By.TAG_NAME, "canvas")
-            img = prepare_ss(el.screenshot_as_png)
+        ss = self.wm.ss()
 
-            idx = int(time.time() * 100_000) / 100_000
-            with open(f"./midrun/canvas-{idx}.png", "wb") as f:
-                f.write(el.screenshot_as_png)
-
-            with open(f"./midrun/ss-{idx}.png", "wb") as f:
-                f.write(self.driver.get_screenshot_as_png())
-            
-            print(img.shape)
-            return img
-        except Exception as e:
-            return None
+        cv2.imwrite(f"./midrun/{int(time.time() * 100_000) / 100_000}.png", ss)
+        return ss
+        
     
 
     def bet(self, amt: int, sb: int, bb: int, ss=None) -> bool: 
@@ -177,7 +147,7 @@ class PSInteract(PokerInteract):
             return False
 
 
-        self.__canvas_click(*mid(press_plus), clicks)
+        self.click(*mid(press_plus), clicks)
         
         button = self.detector.bet_button(ss, threshold=0.8)
         if button is None:
@@ -187,7 +157,7 @@ class PSInteract(PokerInteract):
                 if button is None:
                     return False
 
-        self.__canvas_click(*mid(button))
+        self.click(*mid(button))
         return True
     
 
@@ -203,7 +173,7 @@ class PSInteract(PokerInteract):
         if button is None:
             return False
 
-        self.__canvas_click(*mid(button))
+        self.click(*mid(button))
         return True
 
     def check(self, ss=None) -> bool:
@@ -218,7 +188,7 @@ class PSInteract(PokerInteract):
         if button is None:
             return False
 
-        self.__canvas_click(*mid(button))
+        self.click(*mid(button))
         return True
 
     def fold(self, ss=None) -> bool:
@@ -233,7 +203,7 @@ class PSInteract(PokerInteract):
         if button is None:
             return False
         
-        self.__canvas_click(*mid(button))
+        self.click(*mid(button))
         return True
 
     def call(self, ss=None) -> bool:
@@ -250,7 +220,7 @@ class PSInteract(PokerInteract):
         if button is None:
             return False
         
-        self.__canvas_click(*mid(button))
+        self.click(*mid(button))
         return True
 
     def sit(self) -> bool:
@@ -259,7 +229,7 @@ class PSInteract(PokerInteract):
 
 
 if __name__ == "__main__":
-    detector = PSPokerDetect()
+    detector = PSPokerImgDetect()
     detector.load_images()
     from ...all.windows import UnixWindowManager
     test = PSInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")

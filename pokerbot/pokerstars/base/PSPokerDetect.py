@@ -18,6 +18,8 @@ from treys import Card
 
 from ...all.utils import *
 
+import time
+
 
 def pretty_str_to_int(s: str) -> int:
     try:
@@ -26,7 +28,21 @@ def pretty_str_to_int(s: str) -> int:
         print(f"Could not convert number to int: {s}")
         return 0
 
-class PSPokerDetect(PokerImgDetect, PokerDetection):
+
+
+class PSPokerWindowDetect:
+    def __init__(self, window_manager: AWindowManager):
+        self.window_manager = window_manager
+
+    def small_blind(self):
+        title = self.window_manager.update_window_title()
+        return int(title.split("No Limit Hold'em ")[1].split("/")[0])
+    
+    def big_blind(self):
+        title = self.window_manager.update_window_title()
+        return int(title.split("No Limit Hold'em ")[1].split("/")[1].split(" ")[0])
+    
+class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
     def __init__(self, username: str = None) -> None:
         super().__init__(
@@ -70,12 +86,18 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
         self.name_loc = None
         self.username = username
 
+        # TODO fix this code.
+
+        self.wm: Union[PSPokerWindowDetect, None] = None
+
     def load_images(self):
         super().load_images()
 
         self.POT_BYTES = self.load_image("pot.png")
         self.MAIN_POT_BYTES = self.load_image("mainpot.png")
         self.SIDE_POT_BYTES = self.load_image("sidepot.png")
+
+        self.PLUS_BUTTON_BYTES = self.load_image("plus.png")
 
         # popups
         self.POPUP_LEFT_BYTES = self.load_image("popup_left1.png")
@@ -92,6 +114,9 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
         ]
 
         self.PLAYER_BYTES = [self.PLAYER_LEFT_BYTES, self.PLAYER_RIGHT_BYTES]
+
+    def load_wm(self, window_manager: AWindowManager):
+        self.wm = PSPokerWindowDetect(window_manager)
 
     def ident_near_popup(
         self, img, info_to_right: bool, loc: tuple[int, int, int, int]
@@ -452,9 +477,7 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
             )
 
             return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
-        elif (raise_button := self.raise_button(img)) is not None:
-            
-        
+        elif (raise_button := self.raise_button(img)) is not None:        
             loc = (
                 raise_button[0] - 10,
                 raise_button[3],
@@ -462,7 +485,15 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
                 raise_button[3] + (raise_button[3] - raise_button[1]) * 2,
             )
             return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
-        else:   
+        elif (call_button := self.call_button(img)) is not None:
+            loc = (
+                call_button[0] - 10,
+                call_button[3],
+                call_button[2] + 10,
+                call_button[3] + (call_button[3] - call_button[1]) * 2,
+            )
+            return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))   
+        else:
             raise RuntimeError("Not my turn or couldn't find current bet")
 
     def table_players(
@@ -541,18 +572,16 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
         return players
 
     def big_blind(self, img: MatLike) -> int:
-        big_blind_popup = self.ident_one_template(img, self.BIG_POPUP_BYTES)
-        if big_blind_popup is None:
-            return -1
-
-        return self.ident_near_popup(img, big_blind_popup)
+        if self.wm is None:
+            raise RuntimeError("Window manager not set")
+        
+        return self.wm.big_blind()
 
     def small_blind(self, img: MatLike) -> int:
-        small_blind_popup = self.ident_one_template(img, self.SMALL_POPUP_BYTES)
-        if small_blind_popup is None:
-            return -1
-
-        return self.ident_near_popup(img, small_blind_popup)
+        if self.wm is None:
+            raise RuntimeError("Window manager not set")
+        
+        return self.wm.small_blind()
 
     def get_full_cards(
         self,
@@ -582,10 +611,10 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
                 else:
                     # shift text area down 1/2th of the height of the image and over 1/2th of the width of the image
                     text_area = (
-                        loc[0] + w // 2,
+                        loc[0] + w // 2 - w // 4,
                         loc[1] + h,
-                        loc[2] + 3 * w // 2,
-                        loc[3] + 4 * h // 2 + h // 4,
+                        loc[2] + 3 * w // 2 + w // 4,
+                        loc[3] + 4 * h // 2 + h // 3,
                     )
 
 
@@ -598,7 +627,7 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
                 text = self.ocr_text_from_image(
                     img,
                     text_area,
-                    psm=7,
+                    psm=6,
                     contrast=1.5,
                     invert=True,
                     rotation_angle=0,
@@ -692,9 +721,10 @@ class PSPokerDetect(PokerImgDetect, PokerDetection):
 
     def hole_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
+    
 
 
-def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
+def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
     if isinstance(ss, str):
         img = cv2.imread(ss, cv2.IMREAD_COLOR)
@@ -706,6 +736,20 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     now = time.time()
 
+    mid_pot = 0
+    tot_pot = 0
+    current_bets = []
+    current_bet = 0
+    min_bet = 0
+    active_players = []
+    table_players = []
+
+    plus_button = detector.plus_button(img)
+    if plus_button is not None:
+        print("plus button found")
+        cv2.rectangle(img2, (plus_button[0], plus_button[1]), (plus_button[2], plus_button[3]), (0, 255, 0), 2)
+    else:
+        print("no plus button found")
 
     info = []
 
@@ -719,94 +763,86 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
     info1 = detector.hole_cards_and_locs(img)
 
-    for card, loc in info1:
-        Card.print_pretty_card(card)
-        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    # for card, loc in info1:
+    #     Card.print_pretty_card(card)
+    #     cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    sit_locs = detector.sit_buttons(img)
-    print("sit locs", sit_locs)
+    # sit_locs = detector.sit_buttons(img)
+    # print("sit locs", sit_locs)
 
-    for loc in sit_locs:
-        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    # for loc in sit_locs:
+    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    call_loc = detector.call_button(img)
-    if call_loc is not None:
-        print("call button found")
-        print(call_loc)
-        cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no call button found")
+    # call_loc = detector.call_button(img)
+    # if call_loc is not None:
+    #     print("call button found")
+    #     print(call_loc)
+    #     cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no call button found")
 
-    check_loc = detector.check_button(img)
-    if check_loc is not None:
-        print("check button found")
-        cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no check button found")
+    # check_loc = detector.check_button(img)
+    # if check_loc is not None:
+    #     print("check button found")
+    #     cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no check button found")
 
-    bet_loc = detector.bet_button(img)
-    if bet_loc is not None:
-        print("bet button found")
-        cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no bet button found")
+    # bet_loc = detector.bet_button(img)
+    # if bet_loc is not None:
+    #     print("bet button found")
+    #     cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no bet button found")
 
-    fold_loc = detector.fold_button(img)
-    if fold_loc is not None:
-        print("fold button found")
-        cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no fold button found")
+    # fold_loc = detector.fold_button(img)
+    # if fold_loc is not None:
+    #     print("fold button found")
+    #     cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no fold button found")
 
-    raise_loc = detector.raise_button(img)
-    if raise_loc is not None:
-        cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no raise button found")
+    # raise_loc = detector.raise_button(img)
+    # if raise_loc is not None:
+    #     cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no raise button found")
 
-    allin_loc = detector.allin_button(img)
-    if allin_loc is not None:
-        print("allin button found")
-        cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
-    else:
-        print("no allin button found")
+    # allin_loc = detector.allin_button(img)
+    # if allin_loc is not None:
+    #     print("allin button found")
+    #     cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
+    # else:
+    #     print("no allin button found")
 
-    mid_pot = 0
-    tot_pot = 0
-    current_bets = []
-    current_bet = 0
-    min_bet = 0
-    active_players = []
-    table_players = []
 
-    mid_pot = detector.middle_pot(img)
 
-    print("midpot", mid_pot)
-    current_bets = detector.current_bets(img)
+    # mid_pot = detector.middle_pot(img)
 
-    print("current bets", current_bets)
+    # print("midpot", mid_pot)
+    # current_bets = detector.current_bets(img)
 
-    tot_pot = mid_pot + sum(current_bets)
-    current_bet = max(current_bets) if len(current_bets) > 0 else 0
+    # print("current bets", current_bets)
 
-    active_players = detector.active_players(img)
+    # tot_pot = mid_pot + sum(current_bets)
+    # current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
-    table_players = detector.table_players(img)
+    # active_players = detector.active_players(img)
 
-    print("players: \n",table_players, len(table_players))
+    # table_players = detector.table_players(img)
+
+    # print("players: \n",table_players, len(table_players))
     
 
-    for player, loc in table_players:
-        color = (0, 255, 0) if player.active else (0, 0, 255)
-        cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    # for player, loc in table_players:
+    #     color = (0, 255, 0) if player.active else (0, 0, 255)
+    #     cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    #     cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
+    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
-    min_bet = detector.min_bet(img)
-
-    print("min bet", min_bet)
+  
 
     filename = ss if isinstance(ss, str) else "current image"
 
@@ -820,10 +856,10 @@ def report_info(detector: PSPokerDetect, ss: Union[str, cv2.typing.MatLike]):
 
 if __name__ == "__main__":
 
-    detect = PSPokerDetect()
+    detect = PSPokerImgDetect()
     detect.load_images()
     import os
-    import time
+  
 
     folder = "pokerbot/pokerstars/base/tests"
     # for all files in a directory, run the report_info function
@@ -836,8 +872,9 @@ if __name__ == "__main__":
     files.reverse()
     print(folder, files)
     for filename in files:
-        if filename.endswith(".png") and "cards1" in filename:
+        if filename.endswith(".png") and "fail" in filename:
             path = os.path.join(folder, filename)
             print("running report_info on", path)
 
             report_info(detect, path)
+

@@ -3,7 +3,7 @@ import time
 from typing import Any
 from event_emitter import EventEmitter
 
-from .PSPokerDetect import PSPokerDetect
+from .PSPokerDetect import PSPokerImgDetect
 
 from ...abstract.pokerDetection import PokerDetection
 from ...abstract.pokerEventHandler import PokerStages, PokerEvents, PokerEventHandler
@@ -18,7 +18,7 @@ import cv2
 class PSEventEmitter(PokerEventHandler):
 
 
-    def __init__(self, detector: PSPokerDetect):
+    def __init__(self, detector: PSPokerImgDetect):
         super().__init__()
         self.detector = detector
         
@@ -36,21 +36,6 @@ class PSEventEmitter(PokerEventHandler):
 
         # eager, this is most likely not necessary.
         big_blind = self.detector.big_blind(img) 
-
-        if big_blind == -1:
-            # let's try to find a post
-            post_loc = self.detector.popup(img, TJPopupTypes.POST)
-            if post_loc is not None:
-                big_blind = self.detector.ident_near_popup(img, post_loc)
-
-
-        if small_blind == -1:
-            if big_blind >= 0:
-                # small blind not detected, but big blind is. Assume small blind is half of big blind.
-                small_blind = big_blind // 2
-            else:
-                # have an error (didn't find correct bets), for now just allow it.
-                pass
 
         self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind)
         self.last_hand = hand

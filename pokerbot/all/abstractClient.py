@@ -130,8 +130,6 @@ class AClient:
         if not self.detector.is_initialized():
             self.detector.load_images()
 
-
-
         self.interactor.start(username, password)
 
         self.event_handler.on(PokerEvents.OUR_TURN, self.on_turn)

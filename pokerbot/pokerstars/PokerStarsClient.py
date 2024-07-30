@@ -1,8 +1,10 @@
 import json
 import time
 
+from ..abstract.pokerEventHandler import PokerEvents
+
 from ..all.abstractClient import AClient
-from .base import TJPokerDetect, PSInteract, TJEventEmitter
+from .base import PSPokerImgDetect, PSInteract, PSEventEmitter
 
 
 def run_ticks(_bot: AClient, time_split=2):
@@ -12,6 +14,7 @@ def run_ticks(_bot: AClient, time_split=2):
     while True:
         ss = _bot.interactor._ss()
 
+  
         # cv2.imwrite(f"./midrun/{int(time.time() * 100_000) / 100_000}.png", ss)
 
         _bot.event_handler.tick(ss)
@@ -30,16 +33,19 @@ def run_ticks(_bot: AClient, time_split=2):
         last_time = time.time()
 
 
+def _print(*args):
+    print(*args)
+
 def launch_user(
-    username: str, password: str, time_split=2, headless=False, firefox=False
+    username: str, password: str, exec_path: str, time_split=2, 
 ):
     from ..all.algoLogic import AlgoDecisions
 
-    detector = TJPokerDetect(username)
+    detector = PSPokerImgDetect()
     detector.load_images()
 
-    event_handler = TJEventEmitter(detector=detector)
-    interactor = PSInteract(firefox=firefox, headless=headless, detector=detector)
+    event_handler = PSEventEmitter(detector=detector)
+    interactor = PSInteract(detector=detector, path_to_exec=exec_path)
 
     logic = AlgoDecisions()
 
@@ -53,6 +59,7 @@ def launch_user(
 
     try:
         bot.start(username, password)
+        bot.event_handler.on(PokerEvents.TICK, _print)
         run_ticks(bot, time_split)
     except KeyboardInterrupt:
         print("bot finished")
@@ -71,34 +78,20 @@ def main():
 
     os.makedirs("./midrun", exist_ok=True)
 
-    # for file in os.listdir("./midrun"):
-    #     os.remove(f"./midrun/{file}")
+    for file in os.listdir("./midrun"):
+        os.remove(f"./midrun/{file}")
 
-    from concurrent.futures import ThreadPoolExecutor
+   
 
     try:
-        accounts = []
-
+     
         with open("pokerbot/config.json") as config_file:
-            tj_cfg = json.load(config_file)["triplejack"]
-            firefox = tj_cfg["firefox"]
-            accounts = tj_cfg["accounts"]
-            acc_amt = tj_cfg.get("accountAmt", len(accounts))
+            ps_cfg = json.load(config_file)["pokerstars"]
+            acc = ps_cfg["account"]
+            exec_path = ps_cfg["exec_path"]
 
-        with ThreadPoolExecutor() as executor:
 
-            for idx in range(acc_amt):
-                info = accounts[idx]
-                username = info["username"]
-                password = info["password"]
-                time_split = tj_cfg["secondsPerTick"]
-                headless = tj_cfg["headless"]
-                executor.submit(
-                    launch_user, username, password, time_split, headless, firefox
-                )
-
-        # wait until all threads are done
-        executor.shutdown(wait=True)
+        launch_user(acc["username"], acc["password"], exec_path)
 
     except FileNotFoundError:
         print("Config file not found")
