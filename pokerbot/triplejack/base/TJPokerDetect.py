@@ -4,6 +4,8 @@ import math
 from typing import Union, List, Tuple
 
 import pytesseract
+from scipy import signal
+from scipy.ndimage import convolve, binary_erosion
 
 from ...abstract import PokerDetection
 from ...abstract.impl import *
@@ -15,6 +17,8 @@ from treys import Card
 
 from ...all.utils import *
 
+import os
+import time
 
 class TJPopupTypes:
     BASE = 0
@@ -373,24 +377,40 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                 else:
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
-    def table_players(self, img: MatLike) -> List[Tuple[Tuple[int, int, int, int], str]]:
+    def table_players(self, img: MatLike, active=False) -> List[Tuple[Tuple[int, int, int, int], str]]:
         # convert from BGR to RGB
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        filter_colors = np.array([
-            [68, 68, 68],  # inactive player gray
-            [48, 192, 86],  # active player green
-            [28, 43, 53],  # action player gray
-            # [67, 204, 112]  # self player halo
-        ])
+
+        # crop bottom 20% of image off
+        rgb_img = rgb_img[:int(rgb_img.shape[0] * 0.8)]
+
+        if not active:
+            filter_colors = [
+                [68, 68, 68],  # inactive player gray
+                [48, 192, 86],  # active player green
+                [28, 43, 53],  # action player gray
+                [57, 72, 82],  # action player gray brightened by glow
+                [45, 60, 70],  # action player gray brightened by glow
+            ]
+        else:
+            filter_colors = [
+                [48, 192, 86],  # active player green
+                [28, 43, 53],  # action player gray
+                [57, 72, 82],  # action player gray brightened by glow
+                [45, 60, 70],  # action player gray brightened by glow
+            ]
+            filter_colors.extend([[x, x, x] for x in range(235, 256)])
+            filter_colors = np.array(filter_colors)
 
         mask = np.zeros_like(rgb_img[:, :, 0], dtype=bool)
 
         for color in filter_colors:
-            color_mask = np.all(rgb_img == color, axis=-1)
-            mask = mask | color_mask
+            distance_mask = np.linalg.norm(rgb_img - color, axis=-1) <= 4
+            mask = mask | distance_mask
 
         filtered_image = np.zeros_like(rgb_img)
         filtered_image[mask] = rgb_img[mask]
+
         modified_img = filtered_image
 
         gray = cv2.cvtColor(modified_img, cv2.COLOR_RGB2GRAY)
@@ -404,21 +424,47 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             if white_pixel_count < 75:
                 binary[row][binary[row] == 255] = 0
 
-        # edges = cv2.Canny(binary, 100, 200, apertureSize=3)
+        for i in range(3):
+            kernel = np.concatenate([np.ones(19), np.zeros(19)])
+            kernel = np.expand_dims(kernel, 0)
+            left_conv = convolve(binary == 255, kernel, mode='constant') > 0
+            kernel = kernel[:, ::-1]
+            right_conv = convolve(binary == 255, kernel, mode='constant') > 0
+            binary = binary.astype(np.uint8)
+            binary[(binary == 0) & (left_conv == True) & (right_conv == True)] = 255
+
+        for i in range(1):
+            kernel = np.array([[0, 1 / 3, 0],
+                               [0, 1 / 3, 0],
+                               [0, 1 / 3, 0]])
+            convolved_image = convolve(binary, kernel)
+            binary = np.where(convolved_image == 170, 0, binary)
+
         # show binary
         # cv2.imshow("img", binary)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=100, minLineLength=200, maxLineGap=20)
+        lines: list[list[list[int, int, int, int]]] = cv2.HoughLinesP(binary, rho=1, theta=np.pi / 90, threshold=75, minLineLength=200, maxLineGap=37)
         if lines is None:
             return []
-        
-        
+
+        # debug_image = modified_img.copy()
+        # for line in lines:
+        #     x1, y1, x2, y2 = line[0]
+        #     cv2.line(debug_image, (x1, y1), (x2, y2), (64, 255, 64), 1)
+        # cv2.imshow("img", debug_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         # filter out lines of length more than 260
         lines = list(filter(lambda x: math.sqrt((x[0][0] - x[0][2]) ** 2 + (x[0][1] - x[0][3]) ** 2) < 260, lines))
         # filter out lines whose y1 and y2 arent within 5 pixels
-        lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 5, lines))
+        lines = list(filter(lambda x: abs(x[0][1] - x[0][3]) < 8, lines))
+        # average y values
+        for line in lines:
+            line[0][1] = (line[0][1] + line[0][3]) // 2
+            line[0][3] = line[0][1]
 
         # debug_image = modified_img.copy()
         # for line in lines:
@@ -479,77 +525,16 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         # show lines
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            top = y1 - 20
-            bottom = y1 + 20
+            top = y1 - 15
+            bottom = y1 + 15
             left = x1
             right = x2
-            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=0.5, contrast=2, allowed_chars=False, scale=50)
+            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, allowed_chars=False, scale=50)
             players.append(((left, top, right, bottom), name))
         return players
 
     def active_players(self, img: MatLike) -> list:
-        # decrease the brightness of green pixels (the board)
-        less_green_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        green_mask = cv2.inRange(less_green_img, np.array([35, 100, 100]), np.array([70, 255, 255]))
-        factor = 0.4
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 - green_mask / 255 * (1 - factor))
-        # increase the brightness of non-green pixels
-        less_green_img[..., 2] = less_green_img[..., 2] * (1 + green_mask / 255 * factor)
-
-        less_green_img = cv2.cvtColor(less_green_img, cv2.COLOR_HSV2BGR)
-
-        # blur to smooth out circles
-        modified_img = cv2.GaussianBlur(less_green_img, (21, 21), 0)
-
-        # crank that bri-con!
-        brightness = 120
-        contrast = 120
-        modified_img = np.int16(modified_img)
-        modified_img = modified_img * (contrast / 127 + 1) - contrast + brightness
-        modified_img = np.clip(modified_img, 0, 255)
-        modified_img = np.uint8(modified_img)
-
-        # cv2.imshow("img", modified_img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        _, binary_img = cv2.threshold(cv2.cvtColor(modified_img, cv2.COLOR_BGR2GRAY), 0, 255,
-                                      cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        height, width = binary_img.shape
-        binary_img[3 * height // 10: int(5.5 * height // 10),
-        width // 5: 4 * width // 5] = 0  # black out the community cards
-        binary_img[4 * height // 5:, :] = 0  # black out the hole cards
-
-        # show
-        # cv2.imshow("img", binary_img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        circles = cv2.HoughCircles(binary_img, cv2.HOUGH_GRADIENT, 1, 140, param1=50, param2=10, minRadius=100, maxRadius=120)
-        if circles is None:
-            return []
-        players = []
-        circles = np.uint16(np.around(circles))
-        for circle in circles[0]:
-            # print(circle)
-            # show circle
-            # cv2.circle(img, (circle[0], circle[1]), circle[2], (0, 255, 0), 2)
-            # cv2.circle(img, (circle[0], circle[1]), 2, (0, 0, 255), 3)
-            # cv2.imshow("img", img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
-            center = (circle[0], circle[1])
-            top_y = int(center[1] + circle[2] * 0.65)
-            bottom_y = int(top_y + circle[2] * (1/2.5))
-            left_x = int(center[0] - circle[2])
-            right_x = int(center[0] + circle[2])
-            name = self.ocr_text_from_image(img, (left_x, top_y, right_x, bottom_y), invert=True, brightness=0.2, contrast=5, allowed_chars=False, scale=50)
-            # print(name)
-            players.append(name)
-
-        return players
+        return self.table_players(img, active=True)
 
     def big_blind(self, img: MatLike) -> int:
         big_blind_popup = self.ident_one_template(img, self.BIG_POPUP_BYTES)
@@ -781,8 +766,6 @@ if __name__ == "__main__":
 
     detect = TJPokerDetect()
     detect.load_images()
-    import os
-    import time
 
     folder = "pokerbot/triplejack/base/tests"
     # for all files in a directory, run the report_info function

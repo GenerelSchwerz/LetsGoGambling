@@ -382,7 +382,7 @@ class AlgoDecisions(PokerDecisionMaking):
                 community_cards,
                 active_opponents,
                 threshold_percentile=10,
-                threshold_players=1 if active_opponents < 4 else 2,
+                threshold_players=min(active_opponents, 1 if active_opponents < 4 else 2),
             )
         elif facing_bet > 3 * big_blind:
             equity = calculate_equity_preflop(
@@ -390,7 +390,7 @@ class AlgoDecisions(PokerDecisionMaking):
                 community_cards,
                 active_opponents,
                 threshold_percentile=20,
-                threshold_players=1 if active_opponents < 4 else 2,
+                threshold_players=min(active_opponents, 1 if active_opponents < 4 else 2),
             )
         else:
             equity = calculate_equity_preflop(
@@ -398,7 +398,7 @@ class AlgoDecisions(PokerDecisionMaking):
                 community_cards,
                 active_opponents,
                 threshold_percentile=60,
-                threshold_players=2 if active_opponents < 4 else 3,
+                threshold_players=min(active_opponents, 2 if active_opponents < 4 else 3),
             )
         log.info(f"Preflop equity: {equity}")
         if equity < pot_odds:
