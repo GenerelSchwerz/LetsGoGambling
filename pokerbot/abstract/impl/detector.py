@@ -17,7 +17,7 @@ class PokerImgDetect:
         self.opts = opts
  
         self.SIT_BUTTON_BYTES = None
-    
+
         self.COMMUNITY_HEART_SUIT_BYTES = None
         self.COMMUNITY_DIAMONDS_SUIT_BYTES = None
         self.COMMUNITY_CLUBS_SUIT_BYTES = None
@@ -45,6 +45,9 @@ class PokerImgDetect:
         
         if subsection is not None:
             fullimg = fullimg[subsection[1]:subsection[3], subsection[0]:subsection[2]]
+            # cv2.imshow("img", fullimg)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
         
         w = wanted.shape[0]
         h = wanted.shape[1]
@@ -391,9 +394,10 @@ class PokerImgDetect:
         binary = self.erase_edges(binary)
         binary = self.eliminate_isolated_pixels(binary)
 
-        # cv2.imshow("img", binary)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        if psm == 6:
+            cv2.imshow("img", binary)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 

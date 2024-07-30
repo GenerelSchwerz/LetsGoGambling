@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
 from treys import Card
 
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 class Player:
     name: str
     stack: int # TODO: needed? maybe not
+    active: Union[bool, None] = None
 
 
 

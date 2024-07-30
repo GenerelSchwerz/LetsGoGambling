@@ -13,7 +13,7 @@ import numpy as np
 
 from treys import Card
 
-from .utils import *
+from ...all.utils import *
 
 
 class TJPopupTypes:
