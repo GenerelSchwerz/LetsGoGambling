@@ -1,8 +1,6 @@
 import subprocess
 
 
-import pywinctl as gw
-
 from PIL import ImageGrab
 
 import mss
