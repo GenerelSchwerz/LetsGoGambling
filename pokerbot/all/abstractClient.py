@@ -5,6 +5,8 @@ from ..abstract.pokerEventHandler import PokerEventHandler, PokerEvents
 from ..abstract.pokerDetection import PokerDetection
 from ..abstract.pokerInteract import PokerInteract
 from ..abstract.pokerDecisions import PokerDecisionChoice, PokerDecisionMaking
+from ..abstract.pokerInit import MultiTableSetup
+
 
 from treys import Card
 
@@ -143,6 +145,11 @@ class AClient:
         self.event_handler.remove(PokerEvents.OUR_TURN, self.on_turn)
         self.event_handler.remove(PokerEvents.NEW_HAND, self.on_new_hand)
 
+
+
+class AMultiTableClient:
+    def __init__(self, initializer: MultiTableSetup) -> None:
+        pass
 
 def main():
     bot = AClient()

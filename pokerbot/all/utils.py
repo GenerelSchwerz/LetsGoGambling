@@ -168,7 +168,7 @@ def card_to_abbrev(card: str) -> str:
     return card
 
 
-def pretty_str_to_int(str: str) -> int:
+def pretty_str_to_float(str: str) -> int:
     number = str.lower()
     # remove comma/period
     has_period = '.' in number or ',' in number

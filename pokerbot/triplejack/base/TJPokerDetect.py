@@ -186,7 +186,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             
             try:
                 # occasional noise breaks this
-                return pretty_str_to_int(text)
+                return pretty_str_to_float(text)
             except ValueError:
                 return 0
             
@@ -281,7 +281,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         bottom = self.name_loc[1]
 
         number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
-        return pretty_str_to_int(number)
+        return pretty_str_to_float(number)
 
     def middle_pot(self, img: MatLike) -> int:
 
@@ -295,7 +295,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             )
             text = self.ocr_text_from_image(img, subsection, invert=True)
 
-            return pretty_str_to_int(text)
+            return pretty_str_to_float(text)
 
         h = img.shape[0]
         w = img.shape[1]
@@ -346,12 +346,12 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             call_button = self.call_button(img)
             if call_button is not None:
                 loc = (call_button[0] - 10, call_button[3], call_button[2] + 10, call_button[3] + (call_button[3] - call_button[1]) + 3)
-                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
             else:
                 allin_button = self.allin_button(img)
                 if allin_button is not None:
                     loc = (allin_button[0] - 10, allin_button[3], allin_button[2] + 10, allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
-                    return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                    return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
                 else:
                     raise RuntimeError("Not my turn or couldn't find current bet")
 
@@ -361,19 +361,19 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         bet_button = self.bet_button(img)
         if bet_button is not None:
             loc = (bet_button[0] - 10, bet_button[3], bet_button[2] + 10, bet_button[3] + (bet_button[3] - bet_button[1]) + 3)
-            return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
         else:
             raise_button = self.raise_button(img)
             if raise_button is not None:
                 loc = (raise_button[0] - 10, raise_button[3], raise_button[2] + 10,
                        raise_button[3] + (raise_button[3] - raise_button[1]) + 3)
-                return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
             else:
                 allin_button = self.allin_button(img)
                 if allin_button is not None:
                     loc = (allin_button[0] - 10, allin_button[3], allin_button[2] + 10,
                            allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
-                    return pretty_str_to_int(self.ocr_text_from_image(img, loc, contrast=3))
+                    return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
                 else:
                     raise RuntimeError("Not my turn or couldn't find current bet")
 

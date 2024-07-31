@@ -395,9 +395,9 @@ class PokerImgDetect:
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
-        # cv2.imshow("img", binary)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("img", binary)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         if allowed_chars:
             config = CUSTOM_CONFIG.format(psm=psm)
@@ -436,7 +436,7 @@ if __name__ == "__main__":
         print("sit", pt)
         cv2.rectangle(img2, (pt[0], pt[1]), (pt[2], pt[3]), (0, 0, 255), 2)
 
-    locations2 = poker_img_detect.find_community_suits(img, threshold=0.77)
+    locations2 = poker_img_detect.find_community_suits(img, threshold=0.95)
 
     for key, locations in locations2.items():
         for pt in locations:

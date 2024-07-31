@@ -117,7 +117,7 @@ def resize_window(window_title, width, height):
         all_windows = subprocess.check_output(['xdotool', 'search', '--name', '.*'], universal_newlines=True).strip().split('\n')
         for window in all_windows:
             title = subprocess.check_output(['xdotool', 'getwindowname', window], universal_newlines=True).strip()
-          # print(f"Window ID: {window}, Title: {title}")
+            print(f"Window ID: {window}, Title: {title}")
 
         # Find the window ID using xdotool
         window_id = subprocess.check_output(
@@ -135,7 +135,7 @@ def resize_window(window_title, width, height):
             ['xdotool', 'windowsize', window_id, str(width), str(height)],
             check=True
         )
-      # print(f"Resized window '{window_title} ({window_id})' to {width}x{height}.")
+        print(f"Resized window '{window_title} ({window_id})' to {width}x{height}.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to resize window: {e}")
 
@@ -144,24 +144,23 @@ def resize_window(window_title, width, height):
 
 if __name__ == "__main__":
 
-    ids = get_all_windows_matching(".+No Limit Hold'em.+")
-  # print(ids)
-
+ 
 
     import time
 
-    for i in range(1):
+    # for i in range(1):
+    ids = get_all_windows_matching(".+NL.+")
+    for id in ids:
 
-        for id in ids:
+        resize_window_id(id, 1080, 720)
+        move_window_id_to_display(id, 0)
+        move_window_id_to_forefront(id)
+        time.sleep(0.2)
+        print(get_window_id_dimensions(id))
+        img = screenshot_window_id(id)
 
-            resize_window_id(id, 1080, 720)
-            move_window_id_to_display(id, 0)
-            move_window_id_to_forefront(id)
-            time.sleep(0.2)
-            img = screenshot_window_id(id)
-
-            cv2.imwrite(f"pokerstars_{id}-{i}.png", img)
-            # move_window_id_to_background(id)
+        cv2.imwrite(f"pokerstars_{id}-{0}.png", img)
+        # move_window_id_to_background(id)
 
 
         time.sleep(2)

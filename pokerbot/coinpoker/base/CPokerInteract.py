@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from .PSPokerDetect import PSPokerImgDetect
+from .CPokerDetect import PSPokerImgDetect
 
 import pyautogui
 
@@ -32,7 +32,7 @@ log = Logger("PokerBot")
 def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
     return (tupl[0] + tupl[2]) // 2, (tupl[1] + tupl[3]) // 2
 
-class PSInteract(PokerInteract):
+class CPInteract(PokerInteract):
     """
     TODO MAJOR! Support multiple tables.
     """
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     detector = PSPokerImgDetect()
     detector.load_images()
     from ...all.windows import UnixWindowManager
-    test = PSInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
+    test = CPInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
     test.open_pokerstars()
 
     # time.sleep(10)
