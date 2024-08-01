@@ -53,7 +53,7 @@ class PSInteract(PokerInteract):
             self.detector.load_images()
 
   
-        self.wm: AWindowManager = wm
+        self.wm = wm
 
 
     def click(self, x: int, y: int, amt=1):
