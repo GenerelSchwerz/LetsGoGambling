@@ -18,6 +18,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from .PSPokerDetect import PSPokerImgDetect
 
 import pyautogui
+from pywinauto import *
 
 import time
 import os
@@ -55,17 +56,24 @@ class PSInteract(PokerInteract):
         self.path_to_exec = path_to_exec
         self.wm = None
         self.ps_process = None
+        self.linux = False
+        self.windows = False
 
         # detect whether on windows or linux
         if os.name == "posix":
             self.linux = True
+        elif os.name == "nt":
+            self.windows = True
         else:
-            self.linux = False
+            pass
 
     def open_pokerstars(self):
         if self.linux:
              self.ps_process = subprocess.Popen(["gio", "launch", self.path_to_exec], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-             
+        elif self.windows:
+            app = application.Application()
+            self.ps_process = app.start("Notepad.exe")
+
 
     def shutdown(self):
         if self.ps_process:
@@ -80,7 +88,6 @@ class PSInteract(PokerInteract):
         # self.login(username, password)
         self.wait_until_in_room()
      
-
 
     def login(self, username: str, password: str):
         pyautogui.press("tab")
@@ -232,13 +239,17 @@ if __name__ == "__main__":
     detector = PSPokerImgDetect()
     detector.load_images()
     from ...all.windows import UnixWindowManager
+    from ...all.windows import WindowsWindowManager
     test = PSInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
     test.open_pokerstars()
-
+    time.sleep(1)
+    thisthing = WindowsWindowManager(title="Untitled - Notepad")
+    thisthing.assign_to_window_title(window_title="Untitled - Notepad")
+    thisthing.close()
     # time.sleep(10)
     # test.login("GenerelSchwerz", "Rocky1928!")
 
-    test.wait_until_in_room()
+    # test.wait_until_in_room()
 
     try:
         time.sleep(600)
