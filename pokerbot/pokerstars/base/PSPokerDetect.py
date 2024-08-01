@@ -763,84 +763,84 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
     info1 = detector.hole_cards_and_locs(img)
 
-    # for card, loc in info1:
-    #     Card.print_pretty_card(card)
-    #     cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    for card, loc in info1:
+        Card.print_pretty_card(card)
+        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    # sit_locs = detector.sit_buttons(img)
-    # print("sit locs", sit_locs)
+    sit_locs = detector.sit_buttons(img)
+    print("sit locs", sit_locs)
 
-    # for loc in sit_locs:
-    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+    for loc in sit_locs:
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
-    # call_loc = detector.call_button(img)
-    # if call_loc is not None:
-    #     print("call button found")
-    #     print(call_loc)
-    #     cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no call button found")
+    call_loc = detector.call_button(img)
+    if call_loc is not None:
+        print("call button found")
+        print(call_loc)
+        cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no call button found")
 
-    # check_loc = detector.check_button(img)
-    # if check_loc is not None:
-    #     print("check button found")
-    #     cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no check button found")
+    check_loc = detector.check_button(img)
+    if check_loc is not None:
+        print("check button found")
+        cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no check button found")
 
-    # bet_loc = detector.bet_button(img)
-    # if bet_loc is not None:
-    #     print("bet button found")
-    #     cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no bet button found")
+    bet_loc = detector.bet_button(img)
+    if bet_loc is not None:
+        print("bet button found")
+        cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no bet button found")
 
-    # fold_loc = detector.fold_button(img)
-    # if fold_loc is not None:
-    #     print("fold button found")
-    #     cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no fold button found")
+    fold_loc = detector.fold_button(img)
+    if fold_loc is not None:
+        print("fold button found")
+        cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no fold button found")
 
-    # raise_loc = detector.raise_button(img)
-    # if raise_loc is not None:
-    #     cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no raise button found")
+    raise_loc = detector.raise_button(img)
+    if raise_loc is not None:
+        cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no raise button found")
 
-    # allin_loc = detector.allin_button(img)
-    # if allin_loc is not None:
-    #     print("allin button found")
-    #     cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
-    # else:
-    #     print("no allin button found")
+    allin_loc = detector.allin_button(img)
+    if allin_loc is not None:
+        print("allin button found")
+        cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
+    else:
+        print("no allin button found")
 
 
 
-    # mid_pot = detector.middle_pot(img)
+    mid_pot = detector.middle_pot(img)
 
-    # print("midpot", mid_pot)
-    # current_bets = detector.current_bets(img)
+    print("midpot", mid_pot)
+    current_bets = detector.current_bets(img)
 
-    # print("current bets", current_bets)
+    print("current bets", current_bets)
 
-    # tot_pot = mid_pot + sum(current_bets)
-    # current_bet = max(current_bets) if len(current_bets) > 0 else 0
+    tot_pot = mid_pot + sum(current_bets)
+    current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
-    # active_players = detector.active_players(img)
+    active_players = detector.active_players(img)
 
-    # table_players = detector.table_players(img)
+    table_players = detector.table_players(img)
 
-    # print("players: \n",table_players, len(table_players))
+    print("players: \n",table_players, len(table_players))
     
 
-    # for player, loc in table_players:
-    #     color = (0, 255, 0) if player.active else (0, 0, 255)
-    #     cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    #     cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    for player, loc in table_players:
+        color = (0, 255, 0) if player.active else (0, 0, 255)
+        cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
   
 
@@ -872,7 +872,7 @@ if __name__ == "__main__":
     files.reverse()
     print(folder, files)
     for filename in files:
-        if filename.endswith(".png") and "fail" in filename:
+        if filename.endswith(".png"):
             path = os.path.join(folder, filename)
             print("running report_info on", path)
 

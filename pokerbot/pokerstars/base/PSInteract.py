@@ -18,6 +18,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from .PSPokerDetect import PSPokerImgDetect
 
 import pyautogui
+from pywinauto import *
 
 import time
 import os
@@ -37,7 +38,7 @@ class PSInteract(PokerInteract):
     TODO MAJOR! Support multiple tables.
     """
 
-    def __init__(self, detector: PSPokerImgDetect, wm: AWindowManager, path_to_exec: str):
+    def __init__(self, detector: PSPokerImgDetect, wm: AWindowManager):
         super().__init__()
         
 
@@ -52,13 +53,8 @@ class PSInteract(PokerInteract):
             self.detector.load_images()
 
   
-        self.path_to_exec = path_to_exec
-        self.wm = wm
+        self.wm: AWindowManager = wm
 
-
-    def start(self, username: str, password: str):
-        pass # this should already be handled elsewhere /shrug
-     
 
     def click(self, x: int, y: int, amt=1):
         dims = self.wm.get_window_dimensions()
@@ -180,13 +176,17 @@ if __name__ == "__main__":
     detector = PSPokerImgDetect()
     detector.load_images()
     from ...all.windows import UnixWindowManager
+    from ...all.windows import WindowsWindowManager
     test = PSInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
     test.open_pokerstars()
-
+    time.sleep(1)
+    thisthing = WindowsWindowManager(title="Untitled - Notepad")
+    thisthing.assign_to_window_title(window_title="Untitled - Notepad")
+    thisthing.close()
     # time.sleep(10)
     # test.login("GenerelSchwerz", "Rocky1928!")
 
-    test.wait_until_in_room()
+    # test.wait_until_in_room()
 
     try:
         time.sleep(600)

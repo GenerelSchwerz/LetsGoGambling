@@ -1,16 +1,18 @@
 from selenium import webdriver
-
+from selenium.webdriver.firefox.service import Service
 
 def create_tj_driver(headless=False, firefox=False):
 
     if firefox:
         options = webdriver.FirefoxOptions()
+        ser: Service = Service(r"C:\PATH Programs\geckodriver.exe")
         options.set_preference("media.volume_scale", "0.0")
+        options.binary_location = r"C:\Program Files\Mozilla Firefox\firefox.exe"
 
 
         if headless:
             options.add_argument("--headless")
-            driver = webdriver.Firefox(options=options)
+            driver = webdriver.Firefox(service = ser, options=options)
         else:
             driver = webdriver.Firefox(options=options)
 
