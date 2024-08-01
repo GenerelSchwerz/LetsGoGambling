@@ -49,6 +49,10 @@ class AWindowManager(ABC):
     def ss(self) -> cv2.typing.MatLike:
         pass
 
+    @abstractmethod
+    def close(self):
+        pass
+
 
 class WindowsWindowManager(AWindowManager):
     def __init__(self):
@@ -126,6 +130,8 @@ class UnixWindowManager(AWindowManager):
             raise RuntimeError("Could not find window with id (most likely invalid): " + str(self.window_id))
         return self.window_title
     
+    def close(self):
+        kill_window_id(self.window_id)
 
     def ss(self, time_delay: int = 0.2):
         """
@@ -138,3 +144,4 @@ class UnixWindowManager(AWindowManager):
 
         # move_window_id_to_background(self.window_id)
         return ss
+

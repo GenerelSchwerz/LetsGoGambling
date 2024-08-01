@@ -111,6 +111,17 @@ def resize_window_id(window_id, width, height):
     except subprocess.CalledProcessError as e:
         print(f"Failed to resize window: {e}")
 
+
+def kill_window_id(window_id):
+    try:
+        subprocess.run(
+            ['xdotool', 'windowkill', str(window_id)],
+            check=True
+        )
+      # print(f"Killed window '{window_id}'.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to kill window: {e}")
+
 def resize_window(window_title, width, height):
     try:
 

@@ -35,11 +35,11 @@ class CPokerWindowDetect:
 
     def small_blind(self):
         title = self.window_manager.update_window_title()
-        return int(title.split("No Limit Hold'em ")[1].split("/")[0])
+        return float(title.rsplit("/")[0].rsplit(" ")[-1])
 
     def big_blind(self):
         title = self.window_manager.update_window_title()
-        return int(title.split("No Limit Hold'em ")[1].split("/")[1].split(" ")[0])
+        return float(title.rsplit("/")[1].rsplit(" ")[-1])
 
 
 class CPokerImgDetect(PokerImgDetect, PokerDetection):
@@ -125,13 +125,13 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
 
         print(section, h1, high_offset - low_offset)
 
-        cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
-        cv2.imshow(
-            f"img ",
-            img[section[1] : section[3], section[0] : section[2]],
-        )
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
+        # cv2.imshow(
+        #     f"img ",
+        #     img[section[1] : section[3], section[0] : section[2]],
+        # )
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         # search section for popup boundary
         popup_boundary = self.ident_one_template(
@@ -151,13 +151,13 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
 
         print(subsection)
         # print(w, h)
-        cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
-        cv2.imshow(
-            f"img ",
-            img[subsection[1] : subsection[3], subsection[0] : subsection[2]],
-        )
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
+        # cv2.imshow(
+        #     f"img ",
+        #     img[subsection[1] : subsection[3], subsection[0] : subsection[2]],
+        # )
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         text = self.ocr_text_from_image(
             img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
@@ -178,6 +178,12 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
     ) -> tuple[int, int, int, int]:
         h = screenshot.shape[0]
         return (screenshot.shape[1] // 2, h - h // 4, screenshot.shape[1], h)
+
+    def __get_player_subsection(
+        self, screenshot: cv2.typing.MatLike
+    ) -> tuple[int, int, int, int]:
+        h = screenshot.shape[0]
+        return (0, 0, screenshot.shape[1], h - h // 4)
 
     def call_button(
         self, screenshot: cv2.typing.MatLike, threshold=0.8
@@ -249,11 +255,6 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
             self.__get_button_subsection(screenshot),
         )
 
-    def popup(
-        self, screenshot: cv2.typing.MatLike, popup_type: int
-    ) -> Union[tuple[int, int, int, int], None]:
-        return self.ident_one_template(screenshot, self.__POPUP_DICT[popup_type])
-
     def find_community_suits(
         self,
         ss1: cv2.typing.MatLike,
@@ -319,18 +320,43 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
         """
 
         w, h = img.shape[1], img.shape[0]
-        subsection = (w // 16 * 6, h // 32 * 24, w // 16 * 9, h // 32 * 25)
-        text = self.ocr_text_from_image(
-            img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
+        subsection = (w // 32 * 15, h // 64 * 11, w // 32 * 18, h // 64 * 14)
+
+        # locate chp 
+        loc = self.ident_one_template(
+            img, self.CHP_SIGN_BYTES, subsection=subsection, threshold=0.9
         )
-        return pretty_str_to_float(text)
+
+        stack_area = (
+            loc[2],
+            loc[1],
+            loc[2] + w // 32 * 3,
+            loc[3],
+        )
+
+        # cv2.imshow("img", img[stack_area[1] : stack_area[3], stack_area[0] : stack_area[2]])
+
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        text = self.ocr_text_from_image(
+            img, stack_area, invert=True, brightness=0.5, contrast=3, erode=True
+        )
+
+
+        stack = pretty_str_to_float(text)
+
+        if "." not in text:
+            stack /= 100
+
+        return stack
 
     def middle_pot(self, img: MatLike) -> int:
 
         h = img.shape[0]
         w = img.shape[1]
-        subsection = (w // 8 * 3, h // 2, w // 8 * 5, h // 16 * 11)
-        #      fullimg = fullimg[subsection[1]:subsection[3], subsection[0]:subsection[2]]
+        subsection = (w // 8 * 3, h // 2, w // 8 * 5, h // 16 * 10)
+        # fullimg = fullimg[subsection[1]:subsection[3], subsection[0]:subsection[2]]
 
         # cv2.imshow(
         #     "img", img[subsection[1] : subsection[3], subsection[0] : subsection[2]]
@@ -385,38 +411,48 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
 
             try:
                 # occasional noise breaks this
-                return pretty_str_to_float(text)
+                ret = pretty_str_to_float(text)
+                if "." not in text:
+                    ret /= 100
+                return ret
+
             except ValueError:
                 return 0
 
         ret = []
 
+        h = img.shape[0]
+        w = img.shape[1]
+        pot_ss = (w // 8 * 3, h // 16 * 6, w // 8 * 5, h // 16 * 10)
+     
         for loc in self.template_detect(img, self.POPUP_CHP_BYTES, threshold=0.98):
             # print("found", lo)
+            
+            # if loc is in the middle of the screen (in pot_subsection), skip.
+            if loc[0] > pot_ss[0] and loc[1] > pot_ss[1] and loc[2] < pot_ss[2] and loc[3] < pot_ss[3]:
+                continue
+
             w, h = loc[2] - loc[0], loc[3] - loc[1]
-            subsection = (loc[0] - w * 5, loc[1] - 5, loc[2] + w * 5, loc[3] + 5)
+            check_bb = (loc[0] - w * 5, loc[1] - 5, loc[2] + w * 5, loc[3] + 5)
 
             check_area = img[
-                subsection[1] : subsection[3], subsection[0] : subsection[2]
+                check_bb[1] : check_bb[3], check_bb[0] : check_bb[2]
             ]
             # cv2.imshow("check_area", check_area)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
 
-            right_ret = self.template_detect(
+            found = self.ident_one_template(
                 check_area, self.POPUP_BOUNDARY_BYTES, threshold=0.9
             )
-            if len(right_ret) != 0:
-                # correct off
-                right_ret = right_ret[0]
-
+            if found is not None:
                 print("found right popup (wanted info to the left)")
                 # make a new subsection between the right popup and the center popup
                 subsection1 = (
                     loc[0] + w,
-                    subsection[1] + right_ret[1],
-                    subsection[0] + right_ret[0],
-                    subsection[1] + right_ret[3],
+                    check_bb[1] + found[1],
+                    check_bb[0] + found[0],
+                    check_bb[1] + found[3],
                 )
 
                 # img2 = cv2.rectangle(
@@ -479,16 +515,55 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
     ) -> List[Tuple[Player, Tuple[int, int, int, int]]]:
         players = []
 
-        for check in [self.PLAYER_GREY_BYTES, self.PLAYER_GREEN_BYTES]:
-            for loc in self.template_detect(img, check, threshold=0.9):
+        for check, rng in [(self.PLAYER_GREY_BYTES, 400), (self.PLAYER_GREEN_BYTES, 350)]:
+            for loc in self.template_detect(
+                img, check, threshold=0.8, subsection=self.__get_player_subsection(img)
+            ):
 
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
-                text_area = (
-                    loc[0] - w * 10,
+
+                stack_area = [
+                    loc[2] - w * 10,
+                    loc[1] + h,
+                    loc[2] + w,
+                    loc[1] + h * 3,
+                ]
+
+                text_area = [
+                    loc[2] - w * 10,
                     loc[1] - h // 2,
                     loc[2] - w,
                     loc[3] + h // 2,
+                ]
+
+                loc1 = self.ident_one_template(
+                    img, self.CHP_SIGN_BYTES, subsection=stack_area
                 )
+
+                if loc1 is None:
+                    # technically, their stack is there, just impossible to know right now.
+                    stack = 0
+
+                else:
+                    stack_area[0] = loc1[2]
+                    text_area[0] = (
+                        loc1[0] + (loc1[0] - loc1[2]) // 2
+                    )  # adding a bit of padding
+
+                    stack_str = self.ocr_text_from_image(
+                        img,
+                        stack_area,
+                        psm=6,
+                        contrast=1.5,
+                        invert=True,
+                        rotation_angle=0,
+                        erode=False,
+                    )
+
+                    stack = pretty_str_to_float(stack_str)
+
+                    if "." not in stack_str:
+                        stack /= 100
 
                 text = self.ocr_text_from_image(
                     img,
@@ -500,53 +575,40 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
                     allowed_chars=False,
                 )
 
-                # now get stack size
-
-                stack_area = (
-                    loc[2] - w * 10,
-                    loc[1] + h,
-                    loc[2],
-                    loc[1] + h * 3,
-                )
-
-                stack = self.ocr_text_from_image(
-                    img,
-                    stack_area,
-                    psm=6,
-                    contrast=2,
-                    invert=True,
-                    rotation_angle=0,
-                    erode=False,
-                    scale=33
-                )
-
-                # print(text, stack)
-
-                # cv2.imshow(
-                #     f"img: {text}",
-                #     img[text_area[1] : text_area[3], text_area[0] : text_area[2]],
-                # )
-
-                # cv2.imshow(
-                #     f"img: {stack}",
-                #     img[stack_area[1] : stack_area[3], stack_area[0] : stack_area[2]],
-                # )
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-
                 if text == "":
-                    continue
+                    print("heck")
+                    text = "DUNNO"
+                    # continue
+             
+                fk = (
+                    loc[0] + 2,
+                    loc[1] + 2,
+                    loc[2] - 2,
+                    loc[3] - 2,
+                )
+                mean_color = np.mean(
+                    img[fk[1] : fk[3], fk[0] : fk[2], :], axis=(0, 1)
+                )
 
-                players.append((Player(text, stack), loc))
+             
+                active = np.sum(mean_color) > rng
 
-        print(players)
+                # combine the two areas
+                player_area = (
+                    text_area[0],
+                    text_area[1],
+                    stack_area[2],
+                    stack_area[3],
+                )
+
+                players.append((Player(text, stack, bool(active)), player_area))
 
         return players
 
     def active_players(self, img: MatLike) -> list:
         players = self.table_players(img)
 
-        return players
+        return list(filter(lambda x: x[0].active, players))
 
     def big_blind(self, img: MatLike) -> int:
         if self.wm is None:
@@ -698,6 +760,9 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
 
 
+
+
+
 def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
     if isinstance(ss, str):
@@ -840,7 +905,11 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     mid_pot = detector.middle_pot(img)
 
     print("midpot", mid_pot)
-    current_bets = detector.current_bets(img)
+    # 
+    # print(test)
+
+    test = detector.find_popup_info(img)
+    current_bets = list(map(lambda x: x[0], test))
 
     print("current bets", current_bets)
 
@@ -850,16 +919,61 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     # active_players = detector.active_players(img)
 
     table_players = detector.table_players(img)
+    
+    player_to_bets = associate_bet_locs(table_players, test)
+    print("players: \n", table_players, len(table_players))
 
-    # print("players: \n",table_players, len(table_players))
+    for player, loc in table_players:
+        color = (0, 255, 0) if player.active else (0, 0, 255)
+        cv2.putText(
+            img2,
+            player.name,
+            (loc[0], loc[1] - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            2,
+        )
+        cv2.putText(
+            img2,
+            str(player.stack),
+            (loc[0], loc[3] + 15),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            2,
+        )
 
-    # for player, loc in table_players:
-    #     color = (0, 255, 0) if player.active else (0, 0, 255)
-    #     cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    #     cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
-    #     cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
+        if player.name in player_to_bets:
+            bet, bet_loc = player_to_bets[player.name]
+            
+            cv2.putText(
+                img2,
+                player.name,
+                (bet_loc[2], bet_loc[1] - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                2,
+            )
+            cv2.putText(
+                img2,
+                str(bet),
+                (bet_loc[0], bet_loc[3] + 15),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                2,
+            )
 
+            cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), color, 2)
+
+
+    stack_size = detector.stack_size(img)
+    print(stack_size)
+    
     filename = ss if isinstance(ss, str) else "current image"
 
     cv2.imshow(
@@ -868,6 +982,8 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     )
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    # flush cv2
 
 
 if __name__ == "__main__":

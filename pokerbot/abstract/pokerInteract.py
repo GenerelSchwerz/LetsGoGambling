@@ -35,15 +35,7 @@ class PokerInteract(ABC):
     @abstractmethod
     def sit(self) -> bool:
         pass
-
     
-    @abstractmethod
-    def start(self, username: str, password: str):
-        """
-            Start the interactor, login, and begin the game
-        """
-        pass
-
     @abstractmethod
     def shutdown(self):
         pass

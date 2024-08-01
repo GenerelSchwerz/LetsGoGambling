@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from .CPokerDetect import PSPokerImgDetect
+from .CPokerDetect import CPokerImgDetect
 
 import pyautogui
 
@@ -32,33 +32,34 @@ log = Logger("PokerBot")
 def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
     return (tupl[0] + tupl[2]) // 2, (tupl[1] + tupl[3]) // 2
 
-class CPInteract(PokerInteract):
+class CPokerInteract(PokerInteract):
     """
     TODO MAJOR! Support multiple tables.
     """
 
-    def __init__(self, detector: PSPokerImgDetect, wm: AWindowManager, path_to_exec: str):
+    def __init__(self, detector: CPokerImgDetect, wm: AWindowManager):
         super().__init__()
         
 
         # performance in case multiple instances
-        if detector:
-            self.detector = detector
-            if not self.detector.is_initialized():
-                raise ValueError("Detector not initialized")
         
-        else:
-            self.detector = PSPokerImgDetect()
-            self.detector.load_images()
-
-  
-        self.path_to_exec = path_to_exec
+        self.detector = detector
+        if not self.detector.is_initialized():
+            raise ValueError("Detector not initialized")
+    
         self.wm = wm
 
+    def start(self, *args):
+        pass
 
-    def start(self, username: str, password: str):
-        pass # this should already be handled elsewhere /shrug
-     
+
+    def shutdown(self):
+        if self.wm is not None:
+            self.wm.close()
+
+        else:
+            raise RuntimeError("Window manager not initialized")
+
 
     def click(self, x: int, y: int, amt=1):
         dims = self.wm.get_window_dimensions()
@@ -177,10 +178,10 @@ class CPInteract(PokerInteract):
 
 
 if __name__ == "__main__":
-    detector = PSPokerImgDetect()
+    detector = CPokerImgDetect()
     detector.load_images()
     from ...all.windows import UnixWindowManager
-    test = CPInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
+    test = CPokerInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
     test.open_pokerstars()
 
     # time.sleep(10)

@@ -60,6 +60,15 @@ class PokerImgDetect:
             mask = cv2.merge([alpha, alpha, alpha])
             res = cv2.matchTemplate(fullimg, base, cv2.TM_CCOEFF_NORMED, mask=mask)
         else:
+            # check if template is larger than image
+            if w > fullimg.shape[0] or h > fullimg.shape[1]:
+                print(subsection)
+                print(fullimg.shape, wanted.shape)
+                cv2.imshow("img", fullimg)
+                cv2.imshow("wanted", wanted)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+
             res = cv2.matchTemplate(fullimg, wanted, cv2.TM_CCOEFF_NORMED)
 
         loc = np.where((res >= threshold) &  np.isfinite(res))
@@ -395,9 +404,9 @@ class PokerImgDetect:
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
-        cv2.imshow("img", binary)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         if allowed_chars:
             config = CUSTOM_CONFIG.format(psm=psm)

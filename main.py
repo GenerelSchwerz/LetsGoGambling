@@ -2,9 +2,9 @@ from typing import Union
 import numba
 import numpy as np
 
-from treys import Card, Deck, Evaluator
+from treys import Card, Deck, Evaluator, PLOEvaluator
 from pokerbot.abstract.pokerDetection import Player
-from pokerbot.all.utils import PokerHands, is_in_percentile
+from pokerbot.all.utils import PokerHands, is_hand_possible, is_in_percentile
 
 
 # TODO make everything numpy? Could probably see more performance that way.
@@ -14,7 +14,7 @@ def fast_calculate_equity(
     community_cards: list[Card],
     sim_time=4000,
     runs=1500,
-    threshold_classes: Union[int, tuple[int, int]] = PokerHands.HIGH_CARD,
+    threshold_classes: Union[int, list[int]] = PokerHands.HIGH_CARD,
     threshold_players=1,
     opponents=1,
     opps_satisfy_thresh_now=False,
@@ -22,18 +22,47 @@ def fast_calculate_equity(
     wins = 0
     known_cards = hole_cards + community_cards
 
+    if opps_satisfy_thresh_now:
+        if isinstance(threshold_classes, tuple) or isinstance(threshold_classes, list):
+            if any(
+                not is_hand_possible(community_cards, threshold)
+                for threshold in threshold_classes
+            ):
+                str_it = ", ".join(
+                    PokerHands.to_str(threshold) for threshold in threshold_classes
+                )
+
+                raise ValueError(
+                    f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold ({str_it}) given the board{Card.ints_to_pretty_str(community_cards)}"
+                )
+        elif isinstance(threshold_classes, int):
+            if not is_hand_possible(community_cards, threshold_classes):
+
+                raise ValueError(
+                    f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold {PokerHands.to_str(threshold_classes)} given the board{Card.ints_to_pretty_str(community_cards)}"
+                )
+        else:
+            raise ValueError("threshold_classes must be an int or a tuple of two ints")
+
     # set up full deck beforehand to save cycles.
     SEMI_FULL_DECK = Deck.GetFullDeck().copy()
 
     for card in known_cards:
         SEMI_FULL_DECK.remove(card)
 
-    evaluator = Evaluator()
+    hand_len = len(hole_cards)
+
+    hand_evaluator = PLOEvaluator() if hand_len == 4 else Evaluator()
+    board_evaluator = Evaluator()
     board_len = len(community_cards)
 
     # introducing stochastic variance here
-    if is_lower := (is_middle := isinstance(threshold_classes, tuple)):
-        threshold_class = threshold_classes[0]
+
+    if is_range := (
+        isinstance(threshold_classes, list) or isinstance(threshold_classes, tuple)
+    ):
+        idx1 = np.random.randint(0, len(threshold_classes))
+        threshold_class = threshold_classes[idx1]
     elif isinstance(threshold_classes, int):
         threshold_class = threshold_classes
     else:
@@ -60,11 +89,11 @@ def fast_calculate_equity(
         deck.cards = SEMI_FULL_DECK.copy()
         deck._random.shuffle(deck.cards)
 
-        opponents_cards = [deck.draw(2) for _ in range(opponents)]
+        opponents_cards = [deck.draw(hand_len) for _ in range(opponents)]
         full_board = community_cards + deck.draw(5 - board_len)
 
-        board_rank = evaluator.evaluate([], full_board)
-        board_class = evaluator.get_rank_class(board_rank)
+        board_rank = board_evaluator.evaluate([], full_board)
+        board_class = board_evaluator.get_rank_class(board_rank)
 
         opps_satisfy_thresh_now = opps_satisfy_thresh_now and board_len != 5
         opp_board = community_cards if opps_satisfy_thresh_now else full_board
@@ -74,7 +103,7 @@ def fast_calculate_equity(
 
         for idx, opponent in enumerate(opponents_cards):
 
-            opponent_rank = evaluator.evaluate(opponent, opp_board)
+            opponent_rank = hand_evaluator.evaluate(opponent, opp_board)
 
             # if opponent has a worse hand than the board AND the board is worse than the threshold
             # if opponent_rank >= board_rank and board_class >= threshold_class:
@@ -82,19 +111,21 @@ def fast_calculate_equity(
             #     continue
 
             if board_class <= threshold_class:
+                # opponent_rank = evaluator.evaluate(opponent, full_board)
 
-                # if opponent rank is CURRENTLY stronger than RAN OUT board rank, then threshold is satisfied
+                # # if opponent rank is CURRENTLY stronger than RAN OUT board rank, then threshold is satisfied
                 if opponent_rank <= board_rank:  # include chops, if not then only do <
+
                     thresh_sat += 1
             else:
-                opponent_class = evaluator.get_rank_class(opponent_rank)
+                opponent_class = hand_evaluator.get_rank_class(opponent_rank)
                 if opponent_class <= threshold_class:
                     thresh_sat += 1
 
             # evaluate entire board out since threshold met.
             evals[idx] = (
-                evaluator.evaluate(opponent, full_board)
-                if opps_satisfy_thresh_now
+                hand_evaluator.evaluate(opponent, full_board)
+                if opps_satisfy_thresh_now  # and board_class > threshold_class
                 else opponent_rank
             )
             opp_count += 1
@@ -105,14 +136,14 @@ def fast_calculate_equity(
         if thresh_sat >= threshold_players:
             run_c += 1
 
-            our_rank = evaluator.evaluate(hole_cards, full_board)
+            our_rank = hand_evaluator.evaluate(hole_cards, full_board)
 
-            if is_middle:
-                threshold_class = threshold_classes[int(is_lower)]
-                is_lower = not is_lower
+            if is_range:
+                threshold_class = threshold_classes[idx1]
+                idx1 = (idx1 + 1) % len(threshold_classes)
 
             for idx in range(opp_count, opponents):
-                evals[idx] = evaluator.evaluate(opponents_cards[idx], full_board)
+                evals[idx] = hand_evaluator.evaluate(opponents_cards[idx], full_board)
 
             for opp_rank in evals:
                 if our_rank > opp_rank:
@@ -129,6 +160,7 @@ def fast_calculate_equity(
 
     print(f"Successful simulations: {run_c}, wins: {wins}, runs: {run_it}")
     return wins / run_c if run_c > 0 else 0
+
 
 def calculate_equity_preflop(
     hole_cards: list[Card],
@@ -148,9 +180,10 @@ def calculate_equity_preflop(
 ) -> float:
     start_time = time.time()
 
-    card_len = len(community_cards)
+    com_card_len = len(community_cards)
+    hole_card_len = len(hole_cards)
     deck = Deck()
-    evaluator = Evaluator()
+    evaluator = PLOEvaluator() if hole_card_len == 4 else Evaluator()
 
     SEMI_FULL_DECK = Deck.GetFullDeck().copy()
     for card in hole_cards + community_cards:
@@ -170,9 +203,10 @@ def calculate_equity_preflop(
         deck.cards = SEMI_FULL_DECK.copy()
         deck._random.shuffle(deck.cards)
 
-        opp_cards = [deck.draw(2) for _ in range(opponents)]
+        opp_cards = [deck.draw(hole_card_len) for _ in range(opponents)]
 
         thresh_sat = 0
+
         for i in range(opponents):
             if is_in_percentile(threshold_percentile, opp_cards[i], opponents > 1):
                 thresh_sat += 1
@@ -180,19 +214,19 @@ def calculate_equity_preflop(
                 # runs once.
                 if thresh_sat >= threshold_players:
                     run_c += 1
-                    board = community_cards + deck.draw(5 - card_len)
+                    board = community_cards + deck.draw(5 - com_card_len)
                     our_rank = evaluator.evaluate(hole_cards, board)
-                  
+
                     for i in range(opponents):
-                        eval_result = evaluator.evaluate(opp_cards[i], board)
-                        if eval_result < our_rank:
+                        opp = evaluator.evaluate(opp_cards[i], board)
+                        if opp < our_rank:
                             break
                     else:
                         wins += 1
 
                     break  # inner loop
 
-    print(f"Successful simulations: {run_c} ({time.time() - start_time}s)")
+    print(f"Successful simulations: {run_c} ({time.time() - start_time}s) {wins}")
     # watch for div by 0
     return wins / run_c if run_c != 0 else 0
 
@@ -316,47 +350,74 @@ import time
 start = time.time()
 
 
-hole_cards = [Card.new("Ks"), Card.new("Ts")]
-community_cards = [Card.new("As"), Card.new("3h"), Card.new("2h")]
+hole_cards = [Card.new("Jh"), Card.new("Th")]
+community_cards = [Card.new("8c"), Card.new("Qh"), Card.new("9d")]
 sim_time = 5000
 runs = 1500
+
+print(is_hand_possible(community_cards, PokerHands.STRAIGHT))
+
 
 num_opponents = 1
 threshold_players = 1
 
-threshold = PokerHands.FLUSH
+threshold = (PokerHands.THREE_OF_A_KIND, PokerHands.STRAIGHT)
 
-
-for i in range(9, -1, -1):
-    start = time.time()
-
+# just testing
+try:
     res = fast_calculate_equity(
         hole_cards,
         community_cards,
         sim_time=sim_time,
         runs=runs,
-        threshold_classes=i,
+        threshold_classes=threshold,
         threshold_players=threshold_players,
         opponents=num_opponents,
-        opps_satisfy_thresh_now=True,
+        opps_satisfy_thresh_now=False,
     )
 
-    # can you add this to something outputed after the loop
-    print(f"equity for i ({i}):", res, " | took", time.time() - start, "s")
+    print(
+        f"equity for {PokerHands.to_str(threshold)}:",
+        res,
+        " | took",
+        time.time() - start,
+        "s",
+    )
     print()
 
-    # res1 = calculate_equity(
-    #     hole_cards,
-    #     community_cards,
-    #     active_opponents=num_opponents,
-    #     simulation_time=sim_time,
-    #     num_simulations=runs,
-    #     threshold_hand_strength=i,
-    #     threshold_players=threshold_players,
-    # )
+except ValueError as e:
+    print(e)
+    print()
 
-    # print(f"[OLD] equity for i ({i}):", res1, " | took", time.time() - start, "s")
-    # print()
+for i in range(PokerHands.HIGH_CARD, PokerHands.ROYAL_FLUSH - 1, -1):
+    start = time.time()
+
+    try:
+        res = fast_calculate_equity(
+            hole_cards,
+            community_cards,
+            sim_time=sim_time,
+            runs=runs,
+            threshold_classes=i,
+            threshold_players=threshold_players,
+            opponents=num_opponents,
+            opps_satisfy_thresh_now=True,
+        )
+
+        # can you add this to something outputed after the loop
+        print(
+            f"equity for i ({PokerHands.to_str(i)}):",
+            res,
+            " | took",
+            time.time() - start,
+            "s",
+        )
+        print()
+
+    except ValueError as e:
+        print(e)
+        print()
+
 
 start = time.time()
 res2 = calculate_equity_preflop(
@@ -364,9 +425,20 @@ res2 = calculate_equity_preflop(
     num_opponents,
     # community_cards=community_cards,
     sim_time=sim_time,
-    runs=runs,
-    threshold_percentile=60,
+    runs=runs * 10,
+    threshold_percentile=10,
     threshold_players=threshold_players,
 )
+
+# res2 = fast_calculate_equity(
+#     hole_cards,
+#     [],
+#     sim_time=sim_time,
+#     runs=runs,
+#     threshold_classes=PokerHands.TWO_PAIR,
+#     threshold_players=threshold_players,
+#     opponents=num_opponents,
+#     opps_satisfy_thresh_now=False,
+# )
 
 print(f"equity for preflop:", res2, " | took", time.time() - start, "s")
