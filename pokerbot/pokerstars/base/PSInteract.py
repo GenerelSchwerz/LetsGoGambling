@@ -3,7 +3,7 @@ import random
 import subprocess
 from typing import Union
 
-from ...all.windows import AWindowManager, UnixWindowManager, WindowsWindowManager, get_all_windows_matching
+from ...all.windows import *
 from ...abstract.pokerInteract import PokerInteract
 from selenium import webdriver
 

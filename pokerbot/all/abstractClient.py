@@ -125,14 +125,12 @@ class AClient:
 
         print("Time taken for decision:", time.time() - start)
 
-    def start(self, username: str, password: str):
+    def start(self):
         # if self.interactor is not None:
         #     self.interactor.shutdown()
 
         if not self.detector.is_initialized():
             self.detector.load_images()
-
-        self.interactor.start(username, password)
 
         self.event_handler.on(PokerEvents.OUR_TURN, self.on_turn)
         self.event_handler.on(PokerEvents.NEW_HAND, self.on_new_hand)
