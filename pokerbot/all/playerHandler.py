@@ -6,20 +6,27 @@ from ..abstract.pokerDetection import Player
 
 # Note: this does not currently handle blinds. Small bug.
 class BetHandler:
-    def __init__(self) -> None:
-        self.reset()
+    def __init__(self, sb: int, bb: int) -> None:
+        self.reset(sb, bb)
+        self.sb = sb
+        self.bb = bb
 
-    def reset(self) -> None:
+    def reset(self, sb: Union[int, None] = None, bb: Union[int, None] = None) -> None:
         self._preflop_bets: list[tuple[str, float]] = []
         self._flop_bets: list[tuple[str, float]] = []
         self._turn_bets: list[tuple[str, float]] = []
         self._river_bets: list[tuple[str, float]] = []
 
+        if sb is not None:
+            self.sb = sb
+        if bb is not None:
+            self.bb = bb
+
     def add_bets(
         self,
-        *bets: 
-            tuple[str, float]
-        ,  # assume sorted into betting order (first is first to act)
+        *bets: tuple[
+            str, float
+        ],  # assume sorted into betting order (first is first to act)
         round: int,
     ) -> None:
         assert (
@@ -93,7 +100,7 @@ class BetHandler:
         tot_c = 0
         tot_br = 0
         for stage_bet in [
-            self._preflop_bets,
+            # self._preflop_bets, # not needed for AF
             self._flop_bets,
             self._turn_bets,
             self._river_bets,
@@ -108,13 +115,44 @@ class BetHandler:
 
         return tot_c, tot_br, calc_af(tot_c, tot_br)
 
+    def vpip_this_hand(self, player: str) -> bool:
+        cur_call_amt = self.bb
+
+        for idx, (player_name, bet) in enumerate(self._preflop_bets):
+            if player_name == player:
+
+                was_sb = idx == 0
+                was_bb = idx == 1
+
+                if (
+                    bet > cur_call_amt
+                    or (was_sb and bet == cur_call_amt)
+                    or (not was_bb and bet == cur_call_amt)
+                ):
+                    return True
+
+                cur_call_amt = bet
+
+        return False
+
+    def pfr_this_hand(self, player: str) -> bool:
+
+        cur_call_amt = self.bb
+        for player_name, bet in self._preflop_bets:
+            if player_name == player:
+                if bet > cur_call_amt:
+                    return True
+
+                cur_call_amt = bet
+
+        return False
+
 
 class PlayerHandler:
-    def __init__(self, distance_thresh=30) -> None:
+    def __init__(self, sb: int, bb: int, distance_thresh=30) -> None:
         self._internal_locs: dict[tuple[int, int, int, int], Player] = {}
         self.distance_thresh = distance_thresh
-
-        self.bet_handler = BetHandler()
+        self.bet_handler = BetHandler(sb, bb)
 
     def reset(self):
         self._internal_locs.clear()
@@ -149,7 +187,9 @@ class PlayerHandler:
                 ), f"Expected tuple for ploc, got {type(ploc)}"
 
                 # create new object to avoid reference issues
-                self._internal_locs[ploc] = Player(player.name, player.stack, player.active)
+                self._internal_locs[ploc] = Player(
+                    player.name, player.stack, player.active
+                )
 
     def remove_player(self, player: str):
         for loc, p in self._internal_locs.items():
@@ -160,7 +200,7 @@ class PlayerHandler:
     def update_bets(
         self,
         *bets: tuple[tuple[Player, tuple[int, int, int, int]], float],
-         round: int,
+        round: int,
         # assume sorted into betting order (first is first to act)
     ):
         known_locs = self._internal_locs.keys()
@@ -179,7 +219,9 @@ class PlayerHandler:
                 ), f"Expected tuple for ploc, got {type(ploc)}"
 
                 # create new object to avoid reference issues
-                self._internal_locs[ploc] = Player(player.name, player.stack, player.active)
+                self._internal_locs[ploc] = Player(
+                    player.name, player.stack, player.active
+                )
                 self.bet_handler.add_bets((player.name, bet), round=round)
 
     def get_bets_for(
@@ -204,62 +246,195 @@ class PlayerHandler:
         if (val := self._internal_locs.get(loc)) is not None:
             return self.bet_handler.calculate_aggression_factor(val.name)
 
+    def get_vpip_for_name(self, player: str) -> Union[bool, None]:
+        for loc, p in self._internal_locs.items():
+            if p.name == player:
+                return self.bet_handler.vpip_this_hand(player)
+
+    def get_vpip_for(self, loc: tuple[int, int, int, int]) -> Union[bool, None]:
+        if (val := self._internal_locs.get(loc)) is not None:
+            return self.bet_handler.vpip_this_hand(val.name)
+
+    def get_pfr_for_name(self, player: str) -> Union[bool, None]:
+        for loc, p in self._internal_locs.items():
+            if p.name == player:
+                return self.bet_handler.pfr_this_hand(player)
+
+    def get_pfr_for(self, loc: tuple[int, int, int, int]) -> Union[bool, None]:
+        if (val := self._internal_locs.get(loc)) is not None:
+            return self.bet_handler.pfr_this_hand(val.name)
+
+
+
+def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False) -> list[tuple[str, float]]:
+    # generate a valid bet spread for each player, given standard poker rules.
+    # preflop to river.
+    bets = [[], [], [], []]
+
+    import random
+
+    # shift players in circular order by random number
+    # ex: shift by 2 | 0,1,2,3 -> 2,3,0,1
+
+    if rand_shift:
+        shift = random.randint(0, len(players) - 1)
+        players = players[shift:] + players[:shift]
+
+    bets[0].append((players[0], sb))
+    bets[0].append((players[1], bb))
+
+    folded_players = []
+
+    total_pot = sb + bb
+
+    player_len = len(players)
+
+    for stage in range(4): # preflop, flop, turn, river
+        last_facing = sb if stage == 0 else 0
+        cur_facing = bb if stage == 0 else 0
+
+        
+        p_played_this_bet = 0
+
+        p = 0 if stage != PokerStages.PREFLOP else 2
+
+        bet_dict = {}
+     
+        while p_played_this_bet < player_len:
+            idx = p % player_len
+            player = players[idx]
+            p += 1
+
+            # print(p_played_this_bet, PokerStages.to_str(stage), player, last_facing, cur_facing, total_pot, folded_players)
+
+            # if stage == 0 and idx < 2: # sb, bb
+            #     p_played_this_bet +=1
+            #     continue
+
+            if player in folded_players:
+                p_played_this_bet +=1
+                continue
+
+            if len(folded_players) == player_len - 1:
+                print(f"player {player} wins! Everyone else folded.")
+                break # everyone folded.
+            
+            choice = random.random() # 0 to 1
+            
+            # raise decision
+            if choice > 0.75:
+                # min raise
+
+               
+                p_played_this_bet = 0
+                if cur_facing > 0:
+                    print(f"raising {player} at stage", PokerStages.to_str(stage))
+                    tmp = last_facing 
+                    bets[stage].append((player, cur_facing + tmp))
+                    bet_dict[player] = cur_facing + tmp
+                    last_facing = cur_facing
+                    cur_facing = cur_facing + tmp
+                    total_pot += tmp
+                else:
+                    print(f"betting {player} at stage", PokerStages.to_str(stage))
+                    tmp = total_pot // 2
+                    bets[stage].append((player, cur_facing + tmp))
+                    bet_dict[player] = cur_facing + tmp
+                    last_facing = cur_facing
+                    cur_facing = cur_facing + tmp
+                    total_pot += tmp
+            # call decision
+            elif 0.25 < choice < 0.75:
+                last_bet = bet_dict.get(player, 0)
+                if last_bet < cur_facing and cur_facing > 0:  
+                    bets[stage].append((player, cur_facing))
+                    print(f"calling {player} at stage", PokerStages.to_str(stage))
+                else:
+                    print(f"checking {player} at stage", PokerStages.to_str(stage))
+  
+            
+            
+            elif cur_facing == 0:
+                print(f"checking {player} at stage", PokerStages.to_str(stage))
+                pass
+
+            # fold
+            else:
+                print(f"folding {player} at stage", PokerStages.to_str(stage))
+                folded_players.append(player)
+            
+            p_played_this_bet += 1
+            
+        print()
+
+    return bets
+
+
+
 
 def bet_handler_test():
 
     players = ["first", "second", "third", "fourth"]
 
+    sb = 50
+    bb = 100
     target = players[1]
 
-    bh = BetHandler()
+    bh = BetHandler(sb, bb)
 
-    bh.add_bets(
-        [
-            (players[0], 10),
-            (players[1], 10),
-            (players[2], 30),
-            (players[3], 30),
-            (players[0], 60),
-            (players[1], 60),
-        ],
-        PokerStages.PREFLOP,
-    )
+    preflop, flop, turn, river = generate_player_bets(players, 50, 100, rand_shift=False)
+    bh.add_bets(*preflop, round=PokerStages.PREFLOP)
+    bh.add_bets(*flop, round=PokerStages.FLOP)
+    bh.add_bets(*turn, round=PokerStages.TURN)
+    bh.add_bets(*river, round=PokerStages.RIVER)
 
-    bh.add_bets(
-        [
-            (players[0], 10),
-            (players[1], 10),
-            (players[2], 30),
-            (players[3], 60),
-        ],
-        PokerStages.FLOP,
-    )
-
-    bh.add_bets(
-        [
-            (players[0], 10),
-            # (players[1], 10),
-            (players[2], 30),
-            (players[3], 30),
-        ],
-        PokerStages.TURN,
-    )
-
-    bh.add_bets(
-        [
-            (players[0], 10),
-            (players[1], 30),
-            (players[2], 30),
-            (players[3], 60),
-        ],
-        PokerStages.RIVER,
-    )
-
-    print(bh.get_bets(PokerStages.RIVER))
-
+    print(bh.get_all_bets())
     print(bh.get_bets_for(target))
-
     print(bh.calculate_aggression_factor(target))
+    print(bh.vpip_this_hand(target))
+    print(bh.pfr_this_hand(target))
+
+    # bh.add_bets(
+    #     *[
+    #         (players[0], 50),  # sb (post)
+    #         (players[1], 100),  # bb (post)
+    #         (players[2], 100),  # call
+    #         (players[3], 300),  # raise
+    #         (players[0], 600),  # raise
+    #         (players[1], 600),  # call
+    #         # player[2] folds
+    #         # player[3] folds
+    #     ],
+    #     round=PokerStages.PREFLOP,
+    # )
+
+    # # just player[0] and player[1] left
+    # bh.add_bets(
+    #     *[
+    #         (players[0], 900),  # bet
+    #         (players[1], 900),  # call
+    #     ],
+    #     round=PokerStages.FLOP,
+    # )
+
+    # bh.add_bets(
+    #     *[
+    #         # player[0] checks, so no action here
+    #         (players[1], 2700),  # bet
+    #         (players[0], 2700),  # call
+    #     ],
+    #     round=PokerStages.TURN,
+    # )
+
+    # bh.add_bets(
+    #     *[
+    #         # player[0] checks, so no action here
+    #         (players[1], 5400),  # bet
+    #         (players[0], 10800),  # raise
+    #         # player[1] folds
+    #     ],
+    #     round=PokerStages.RIVER,
+    # )
 
 
 def player_handler_test():
@@ -317,15 +492,17 @@ def player_handler_test():
     print(ph.get_af_for_name(target_name))
     print(ph.get_af_for(target_pos))
 
-
     new_stack = 200
     target[0].stack = new_stack
     ph.update_players(target)
 
     print(ph._internal_locs)
 
+
 def main():
-    player_handler_test()
+    
+    bet_handler_test()
+    # player_handler_test()
     pass
 
 
