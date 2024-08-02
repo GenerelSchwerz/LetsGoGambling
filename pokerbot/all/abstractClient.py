@@ -145,9 +145,6 @@ class AClient:
 
 
 
-class AMultiTableClient:
-    def __init__(self, initializer: MultiTableSetup) -> None:
-        pass
 
 def main():
     bot = AClient()

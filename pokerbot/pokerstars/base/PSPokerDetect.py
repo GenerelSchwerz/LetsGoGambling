@@ -23,11 +23,12 @@ import time
 
 def pretty_str_to_float(s: str) -> int:
     try:
-        return int(s.replace(",", "").replace("$", "").replace(" ", "").replace(".", ""))
+        return int(
+            s.replace(",", "").replace("$", "").replace(" ", "").replace(".", "")
+        )
     except ValueError:
         print(f"Could not convert number to int: {s}")
         return 0
-
 
 
 class PSPokerWindowDetect:
@@ -37,11 +38,12 @@ class PSPokerWindowDetect:
     def small_blind(self):
         title = self.window_manager.update_window_title()
         return int(title.split("No Limit Hold'em ")[1].split("/")[0])
-    
+
     def big_blind(self):
         title = self.window_manager.update_window_title()
         return int(title.split("No Limit Hold'em ")[1].split("/")[1].split(" ")[0])
-    
+
+
 class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
     def __init__(self, username: str = None) -> None:
@@ -70,7 +72,6 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         self.MAIN_POT_BYTES = None
         self.SIDE_POT_BYTES = None
 
-   
         self.PLUS_BUTTON_BYTES = None
 
         # popups
@@ -79,6 +80,9 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
         self.PLAYER_LEFT_BYTES = None
         self.PLAYER_RIGHT_BYTES = None
+
+        self.PLAYER_LEFT_BRIGHT_BYTES = None
+        self.PLAYER_RIGHT_BRIGHT_BYTES = None
 
         self.POPUP_BYTES = []
         self.PLAYER_BYTES = []
@@ -107,13 +111,23 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         self.PLAYER_LEFT_BYTES = self.load_image("player_left_active.png")
         self.PLAYER_RIGHT_BYTES = self.load_image("player_right_active.png")
 
+        self.PLAYER_LEFT_BRIGHT_BYTES = self.load_image("player_left_active_bright.png")
+        self.PLAYER_RIGHT_BRIGHT_BYTES = self.load_image(
+            "player_right_active_bright.png"
+        )
+
         self.POPUP_BYTES = [
             self.POPUP_LEFT_BYTES,
             self.POPUP_RIGHT_BYTES,
             self.POPUP_CENTER_BYTES,
         ]
 
-        self.PLAYER_BYTES = [self.PLAYER_LEFT_BYTES, self.PLAYER_RIGHT_BYTES]
+        self.PLAYER_BYTES = [
+            self.PLAYER_LEFT_BYTES,
+            self.PLAYER_LEFT_BRIGHT_BYTES,
+            self.PLAYER_RIGHT_BYTES,
+            self.PLAYER_RIGHT_BRIGHT_BYTES,
+        ]
 
     def load_wm(self, window_manager: AWindowManager):
         self.wm = PSPokerWindowDetect(window_manager)
@@ -299,9 +313,17 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         """
 
         w, h = img.shape[1], img.shape[0]
-        subsection = (w // 16 * 6, h // 32 * 24, w // 16 * 9, h // 32 * 25)
+        subsection = (w // 16 * 6, h // 32 * 24 - 3, w // 16 * 10, h // 32 * 25)
+
+        # cv2.imshow(
+        #     "img", img[subsection[1] : subsection[3], subsection[0] : subsection[2]]
+        # )
+
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         text = self.ocr_text_from_image(
-            img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
+            img, subsection, invert=True, brightness=2, contrast=1.5, erode=True
         )
         return pretty_str_to_float(text)
 
@@ -473,11 +495,11 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 bet_button[0] - 10,
                 bet_button[3],
                 bet_button[2] + 10,
-                bet_button[3] + (bet_button[3] - bet_button[1]) * 2
+                bet_button[3] + (bet_button[3] - bet_button[1]) * 2,
             )
 
             return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
-        elif (raise_button := self.raise_button(img)) is not None:        
+        elif (raise_button := self.raise_button(img)) is not None:
             loc = (
                 raise_button[0] - 10,
                 raise_button[3],
@@ -492,7 +514,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 call_button[2] + 10,
                 call_button[3] + (call_button[3] - call_button[1]) * 2,
             )
-            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))   
+            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
         else:
             raise RuntimeError("Not my turn or couldn't find current bet")
 
@@ -503,33 +525,53 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
         sections = []
         img2 = img.copy()
-        for loc in self.template_detect(img, self.PLAYER_LEFT_BYTES, threshold=0.9):
-            w, h = loc[2] - loc[0], loc[3] - loc[1]
 
-            # player info is to the right
-            sections.append( (
-                loc[0],
-                loc[1] - 5,
-                loc[2] + w * 5,
-                loc[3] + 5,
-            )
-          )
-    
-        for loc in self.template_detect(img, self.PLAYER_RIGHT_BYTES, threshold=0.9):
-            w, h = loc[2] - loc[0], loc[3] - loc[1]
-            
-            # player info is to the left
-            sections.append((
-                loc[0] - w * 5 - w // 2, # lazy fix
-                loc[1] - 5,
-                loc[2],
-                loc[3] + 5,
-            )) 
-      
+        for idx, type in enumerate(self.PLAYER_BYTES):
+            for loc in self.template_detect(img, type, threshold=0.89):
+                w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+                # player info is to the right
+                sections.append(
+                    (
+                        loc[0] if idx < 2 else loc[0] - w * 5 - w // 2,
+                        loc[1] - 5,
+                        loc[2] + w * 5 + w // 2 if idx < 2 else loc[2],
+                        loc[3] + 5,
+                    )
+                )
+
+        # for loc in self.template_detect(img, self.PLAYER_LEFT_BYTES, threshold=0.9):
+        #     w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+        #     # player info is to the right
+        #     sections.append(
+        #         (
+        #             loc[0],
+        #             loc[1] - 5,
+        #             loc[2] + w * 5 + w // 2,
+        #             loc[3] + 5,
+        #         )
+        #     )
+
+        # for loc in self.template_detect(img, self.PLAYER_RIGHT_BYTES, threshold=0.9):
+        #     w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+        #     # player info is to the left
+        #     sections.append(
+        #         (
+        #             loc[0] - w * 5 - w // 2,  # lazy fix
+        #             loc[1] - 5,
+        #             loc[2],
+        #             loc[3] + 5,
+        #         )
+        #     )
+
         for section in sections:
             w, h = section[2] - section[0], section[3] - section[1]
 
-            tot_bright = np.sum(img2[section[1] : section[3], section[0] : section[2]]) // (3 * w * h)
+            tot_bright = np.sum(
+                img2[section[1] : section[3], section[0] : section[2]]
+            ) // (3 * w * h)
 
             print(tot_bright)
             active = tot_bright > 30
@@ -538,13 +580,25 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             subsection = (section[0], section[1], section[2], section[1] + h // 2)
 
             name = self.ocr_text_from_image(
-                img, subsection, invert=True, brightness=0.5, contrast=3, erode=True, allowed_chars=False
+                img,
+                subsection,
+                invert=True,
+                brightness=0.5,
+                contrast=3,
+                erode=True,
+                allowed_chars=False,
             )
 
             # stack size in bottom half of section
             subsection = (section[0], section[1] + h // 2, section[2], section[3])
             stack_size = self.ocr_text_from_image(
-                img, subsection, invert=True, brightness=0.5, contrast=3, erode=False, similarity_factor=False
+                img,
+                subsection,
+                invert=True,
+                brightness=0.5,
+                contrast=3,
+                erode=False,
+                similarity_factor=False,
             )
 
             if stack_size == "":
@@ -552,35 +606,29 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 continue
             else:
                 stack_size = pretty_str_to_float(stack_size)
-
-            players.append((Player(name, stack_size, active=active), section))
-
-            
-
-         
+            print("player:", name, "active:", active)
+            players.append((Player(name, stack_size, active=bool(active)), section))
 
         # cv2.imshow("img", img2)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
         return players
 
-    def active_players(self, img: MatLike) -> list:
+    def active_players(self, img: MatLike) -> list[Player, tuple[int, int, int, int]]:
         players = self.table_players(img)
 
-      
-
-        return players
+        return list(filter(lambda x: x[0].active, players))
 
     def big_blind(self, img: MatLike) -> int:
         if self.wm is None:
             raise RuntimeError("Window manager not set")
-        
+
         return self.wm.big_blind()
 
     def small_blind(self, img: MatLike) -> int:
         if self.wm is None:
             raise RuntimeError("Window manager not set")
-        
+
         return self.wm.small_blind()
 
     def get_full_cards(
@@ -593,7 +641,6 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             suits = self.find_hole_suits(img, subsection=subsection)
         else:
             suits = self.find_community_suits(img, subsection=subsection)
-          
 
         ret = []
 
@@ -603,7 +650,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
                 if hole:
                     text_area = (
-                        loc[0] - w ,
+                        loc[0] - w,
                         loc[1] - 3 * h,
                         loc[2] + w,
                         loc[3] - h,
@@ -614,9 +661,8 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                         loc[0] + w // 2 - w // 4,
                         loc[1] + h,
                         loc[2] + 3 * w // 2 + w // 4,
-                        loc[3] + 4 * h // 2 + h // 3,
+                        loc[3] + 4 * h // 2 + h // 8 * 4,
                     )
-
 
                 # cv2.imshow(
                 #     "img",
@@ -721,7 +767,6 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
     def hole_cards(self, img: MatLike) -> list[Card]:
         return list(map(lambda x: x[0], self.hole_cards_and_locs(img)))
-    
 
 
 def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
@@ -747,7 +792,13 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     plus_button = detector.plus_button(img)
     if plus_button is not None:
         print("plus button found")
-        cv2.rectangle(img2, (plus_button[0], plus_button[1]), (plus_button[2], plus_button[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2,
+            (plus_button[0], plus_button[1]),
+            (plus_button[2], plus_button[3]),
+            (0, 255, 0),
+            2,
+        )
     else:
         print("no plus button found")
 
@@ -758,14 +809,30 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     print(info)
     for card, loc in info:
         Card.print_pretty_card(card)
-        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(
+            img2,
+            Card.int_to_str(card),
+            (loc[0], loc[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     info1 = detector.hole_cards_and_locs(img)
 
     for card, loc in info1:
         Card.print_pretty_card(card)
-        cv2.putText(img2, Card.int_to_str(card), (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(
+            img2,
+            Card.int_to_str(card),
+            (loc[0], loc[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
 
     sit_locs = detector.sit_buttons(img)
@@ -778,45 +845,67 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     if call_loc is not None:
         print("call button found")
         print(call_loc)
-        cv2.rectangle(img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2, (call_loc[0], call_loc[1]), (call_loc[2], call_loc[3]), (0, 255, 0), 2
+        )
     else:
         print("no call button found")
 
     check_loc = detector.check_button(img)
     if check_loc is not None:
         print("check button found")
-        cv2.rectangle(img2, (check_loc[0], check_loc[1]), (check_loc[2], check_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2,
+            (check_loc[0], check_loc[1]),
+            (check_loc[2], check_loc[3]),
+            (0, 255, 0),
+            2,
+        )
     else:
         print("no check button found")
 
     bet_loc = detector.bet_button(img)
     if bet_loc is not None:
         print("bet button found")
-        cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), (0, 255, 0), 2
+        )
     else:
         print("no bet button found")
 
     fold_loc = detector.fold_button(img)
     if fold_loc is not None:
         print("fold button found")
-        cv2.rectangle(img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2, (fold_loc[0], fold_loc[1]), (fold_loc[2], fold_loc[3]), (0, 255, 0), 2
+        )
     else:
         print("no fold button found")
 
     raise_loc = detector.raise_button(img)
     if raise_loc is not None:
-        cv2.rectangle(img2, (raise_loc[0], raise_loc[1]), (raise_loc[2], raise_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2,
+            (raise_loc[0], raise_loc[1]),
+            (raise_loc[2], raise_loc[3]),
+            (0, 255, 0),
+            2,
+        )
     else:
         print("no raise button found")
 
     allin_loc = detector.allin_button(img)
     if allin_loc is not None:
         print("allin button found")
-        cv2.rectangle(img2, (allin_loc[0], allin_loc[1]), (allin_loc[2], allin_loc[3]), (0, 255, 0), 2)
+        cv2.rectangle(
+            img2,
+            (allin_loc[0], allin_loc[1]),
+            (allin_loc[2], allin_loc[3]),
+            (0, 255, 0),
+            2,
+        )
     else:
         print("no allin button found")
-
-
 
     mid_pot = detector.middle_pot(img)
 
@@ -832,17 +921,34 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
     table_players = detector.table_players(img)
 
-    print("players: \n",table_players, len(table_players))
-    
+    print("players: \n", table_players, len(table_players))
+
+    stack_size = detector.stack_size(img)
+
+    print(stack_size)
 
     for player, loc in table_players:
         color = (0, 255, 0) if player.active else (0, 0, 255)
-        cv2.putText(img2, player.name, (loc[0], loc[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        cv2.putText(img2, str(player.stack), (loc[0], loc[3] + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.putText(
+            img2,
+            player.name,
+            (loc[0], loc[1] - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            2,
+        )
+        cv2.putText(
+            img2,
+            str(player.stack),
+            (loc[0], loc[3] + 15),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            2,
+        )
 
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
-
-  
 
     filename = ss if isinstance(ss, str) else "current image"
 
@@ -859,7 +965,6 @@ if __name__ == "__main__":
     detect = PSPokerImgDetect()
     detect.load_images()
     import os
-  
 
     folder = "pokerbot/pokerstars/base/tests"
     # for all files in a directory, run the report_info function
@@ -877,4 +982,3 @@ if __name__ == "__main__":
             print("running report_info on", path)
 
             report_info(detect, path)
-

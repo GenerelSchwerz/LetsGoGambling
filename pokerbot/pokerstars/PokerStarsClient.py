@@ -1,6 +1,8 @@
 import json
 import time
 
+from pokerbot.all.windows.xdotoolUtils import get_window_id_dimensions, resize_window_id
+
 from ..abstract.pokerEventHandler import PokerEvents
 
 from ..all.abstractClient import AClient
@@ -74,7 +76,7 @@ def start_table(window_id: int):
     )
 
     try:
-        client.start(None, None)
+        client.start()
         client.event_handler.on(PokerEvents.TICK, _print)
         run_ticks(client, 2)
     except KeyboardInterrupt:
@@ -90,6 +92,7 @@ def start_table(window_id: int):
 class PokerStarsInit(MultiTableSetup):
 
     def __init__(self, path_to_exec: str):
+        super().__init__()
         self.path_to_exec = path_to_exec
         self.parent_ps_process = None
 
@@ -129,6 +132,12 @@ class PokerStarsInit(MultiTableSetup):
 
         windows = get_all_windows_matching(".+No Limit Hold'em.+")
 
+        for window_id in windows:
+            # click on center of window to focus
+            x, x1, y, y1 = get_window_id_dimensions(window_id)
+            pyautogui.click(x + (x1 - x) // 2, y + (y1 - y) // 2)
+            resize_window_id(window_id, 1080, 720)
+
         return [
             self.process_executor.submit(start_table, window_id)
             for window_id in windows
@@ -158,10 +167,12 @@ def main():
     full_client = PokerStarsInit(exec_path)
     full_client.start()
 
-    time.sleep(20)
-    full_client.login(acc["username"], acc["password"])
 
+    # full_client.login(acc["username"], acc["password"])
+    time.sleep(10)
     clients = full_client.start_tables(1)
+
+    print(clients)
     full_client.wait_for_all(clients)
 
 

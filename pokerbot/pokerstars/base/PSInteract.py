@@ -56,6 +56,9 @@ class PSInteract(PokerInteract):
         self.wm = wm
 
 
+    def shutdown(self):
+        self.wm.close()
+
     def click(self, x: int, y: int, amt=1):
         dims = self.wm.get_window_dimensions()
         x1 = x + dims[0]
@@ -63,6 +66,7 @@ class PSInteract(PokerInteract):
 
         print(f"Clicking at {x}, {y}")
         print(pyautogui.position())
+        pyautogui.moveTo(x1, y1, duration=0.2, tween=pyautogui.easeInOutQuad)
         pyautogui.click(x1, y1, clicks=amt, interval=0.05)
 
 
@@ -81,9 +85,17 @@ class PSInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        clicks = int((sb * round((amt - self.detector.min_bet(ss)) / sb)) / sb)
+        min_bet = self.detector.min_bet(ss)
+
+        # clicks increment by big blind. So starting amt is min_bet, then add X big blinds to get to amt
+        clicks = 1
+        while min_bet + (clicks * bb) < amt:
+            clicks += 1
+        
+        print("Clicking", clicks, "times", min_bet + (clicks * bb), "of", amt)
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
+            print("Adjusted clicks to", clicks)
 
         press_plus = self.detector.plus_button(ss, threshold=0.8)
         if press_plus is None:

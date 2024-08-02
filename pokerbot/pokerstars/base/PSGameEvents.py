@@ -53,8 +53,7 @@ class PSEventEmitter(PokerEventHandler):
             facing_bet = max(current_bets)
 
         table_players = self.detector.table_players(img)
-
-        active_players = self.detector.active_players(img)
+        active_players = list(filter(lambda x: bool(x[0].active), table_players))
 
         print("[OUR TURN] table:", table_players, "active:", active_players, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
 
@@ -77,6 +76,7 @@ class PSEventEmitter(PokerEventHandler):
         start = time.time()
         try:
             community_cards = self.detector.community_cards(image)
+            current_hand = self.detector.hole_cards(image)
         except (KeyError, ValueError) as e:
             # OCR failed somewhere, so we're just going to skip this iteration for the time being.
             print(f"Error in detecting community cards: {e}")
@@ -115,19 +115,18 @@ class PSEventEmitter(PokerEventHandler):
                 return
                 # raise ValueError(f"Invalid number of community cards, found {len(community_cards)}")
 
-        current_hand = None
+        # current_hand = None
     
         if current_stage != self.last_stage:
             self.emit(PokerEvents.NEW_STAGE, self.last_stage, current_stage)
 
             if current_stage == PokerStages.PREFLOP:
-                current_hand = self.detector.hole_cards(image)
                 if (current_hand != self.last_hand or len(current_hand)== 0):
                     self.__emit_new_hand(image, current_hand)
              
 
         elif current_stage == PokerStages.PREFLOP:
-            current_hand = self.detector.hole_cards(image)
+            # current_hand = self.detector.hole_cards(image)
 
             if current_hand != self.last_hand and (hand_len := len(current_hand)) == 2:
                 if hand_len < 2:

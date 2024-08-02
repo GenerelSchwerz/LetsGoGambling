@@ -99,12 +99,18 @@ def move_window_id_to_display(window_id, desktop):
     except subprocess.CalledProcessError as e:
         print(f"Failed to move window to display: {e}")
 
-def resize_window_id(window_id, width, height):
+def resize_window_id(window_id, width, height, activate=False):
     try:
+
+        if activate:
+            move_window_id_to_forefront(window_id)
+
+
         subprocess.run(
             ['xdotool', 'windowsize', str(window_id), str(width), str(height)],
             check=True
         )
+
       # print(f"Resized window '{window_id}' to {width}x{height}.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to resize window: {e}")

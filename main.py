@@ -111,7 +111,8 @@ def fast_calculate_equity(
             #     continue
 
             if board_class <= threshold_class:
-                # opponent_rank = evaluator.evaluate(opponent, full_board)
+                # if threshold_class == PokerHands.HIGH_CARD:
+                #     opponent_rank = hand_evaluator.evaluate(opponent, full_board)
 
                 # # if opponent rank is CURRENTLY stronger than RAN OUT board rank, then threshold is satisfied
                 if opponent_rank <= board_rank:  # include chops, if not then only do <
@@ -350,13 +351,13 @@ import time
 start = time.time()
 
 
-hole_cards = [Card.new("Jh"), Card.new("Th")]
-community_cards = [Card.new("8c"), Card.new("Qh"), Card.new("9d")]
-sim_time = 5000
-runs = 1500
+hole_cards = [Card.new("Jd"), Card.new("Th")]
+community_cards = [Card.new("9c"), Card.new("Jh"), Card.new("Kd")]
 
 print(is_hand_possible(community_cards, PokerHands.STRAIGHT))
 
+sim_time = 5000
+runs = 1500
 
 num_opponents = 1
 threshold_players = 1
@@ -373,7 +374,7 @@ try:
         threshold_classes=threshold,
         threshold_players=threshold_players,
         opponents=num_opponents,
-        opps_satisfy_thresh_now=False,
+        opps_satisfy_thresh_now=True,
     )
 
     print(
@@ -386,7 +387,8 @@ try:
     print()
 
 except ValueError as e:
-    print(e)
+    import traceback   
+    traceback.print_exc()
     print()
 
 for i in range(PokerHands.HIGH_CARD, PokerHands.ROYAL_FLUSH - 1, -1):
