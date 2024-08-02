@@ -109,7 +109,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         self.POPUP_CENTER_BYTES = self.load_image("popup_center.png")
 
         self.PLAYER_LEFT_BYTES = self.load_image("player_left_active.png")
-        self.PLAYER_RIGHT_BYTES = self.load_image("player_right_active.png")
+        self.PLAYER_RIGHT_BYTES = self.load_image("player_right_active1.png")
 
         self.PLAYER_LEFT_BRIGHT_BYTES = self.load_image("player_left_active_bright.png")
         self.PLAYER_RIGHT_BRIGHT_BYTES = self.load_image(
@@ -527,7 +527,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         img2 = img.copy()
 
         for idx, type in enumerate(self.PLAYER_BYTES):
-            for loc in self.template_detect(img, type, threshold=0.89):
+            for loc in self.template_detect(img, type, threshold=0.9):
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
 
                 # player info is to the right
@@ -539,33 +539,8 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                         loc[3] + 5,
                     )
                 )
-
-        # for loc in self.template_detect(img, self.PLAYER_LEFT_BYTES, threshold=0.9):
-        #     w, h = loc[2] - loc[0], loc[3] - loc[1]
-
-        #     # player info is to the right
-        #     sections.append(
-        #         (
-        #             loc[0],
-        #             loc[1] - 5,
-        #             loc[2] + w * 5 + w // 2,
-        #             loc[3] + 5,
-        #         )
-        #     )
-
-        # for loc in self.template_detect(img, self.PLAYER_RIGHT_BYTES, threshold=0.9):
-        #     w, h = loc[2] - loc[0], loc[3] - loc[1]
-
-        #     # player info is to the left
-        #     sections.append(
-        #         (
-        #             loc[0] - w * 5 - w // 2,  # lazy fix
-        #             loc[1] - 5,
-        #             loc[2],
-        #             loc[3] + 5,
-        #         )
-        #     )
-
+        
+     
         for section in sections:
             w, h = section[2] - section[0], section[3] - section[1]
 
@@ -573,7 +548,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 img2[section[1] : section[3], section[0] : section[2]]
             ) // (3 * w * h)
 
-            print(tot_bright)
+         
             active = tot_bright > 30
 
             # name in top half of section
@@ -583,10 +558,10 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 img,
                 subsection,
                 invert=True,
-                brightness=0.5,
-                contrast=3,
+                brightness=1.5,
+                contrast=1.8,
                 erode=True,
-                allowed_chars=False,
+                card_chars=False,
             )
 
             # stack size in bottom half of section
@@ -595,8 +570,8 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 img,
                 subsection,
                 invert=True,
-                brightness=0.5,
-                contrast=3,
+                brightness=1.5,
+                contrast=1.8,
                 erode=False,
                 similarity_factor=False,
             )
@@ -609,6 +584,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             print("player:", name, "active:", active)
             players.append((Player(name, stack_size, active=bool(active)), section))
 
+        print(len(players), len(sections))
         # cv2.imshow("img", img2)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
@@ -917,8 +893,7 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     tot_pot = mid_pot + sum(current_bets)
     current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
-    active_players = detector.active_players(img)
-
+   
     table_players = detector.table_players(img)
 
     print("players: \n", table_players, len(table_players))
@@ -953,7 +928,7 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     filename = ss if isinstance(ss, str) else "current image"
 
     cv2.imshow(
-        f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Active players: {active_players} | Table players: {table_players} | Took: {int((time.time() - now) * 1000) / 1000} sec",
+        f"{filename} ({img.shape[0]}x{img.shape[1]}) | Stage: {PokerStages.to_str(cards_to_stage(info))} | mid pot: {mid_pot} | tot pot: {tot_pot} | current bets: {current_bets} (facing: {current_bet}) | Took: {int((time.time() - now) * 1000) / 1000} sec",
         img2,
     )
     cv2.waitKey(0)

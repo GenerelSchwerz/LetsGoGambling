@@ -11,6 +11,7 @@ from PIL.Image import Resampling
 import pytesseract
 
 
+
 class PokerImgDetect:
 
     def __init__(self, opts: PokerImgOpts) -> None:
@@ -315,7 +316,7 @@ class PokerImgDetect:
                             erode=False,
                             brightness=0.0,
                             contrast=0.0,
-                            allowed_chars=True,
+                            card_chars=True,
                             similarity_factor=True,
                             scale=40):
 
@@ -328,7 +329,7 @@ class PokerImgDetect:
 
         if invert:
             # white pixels matter more than colored, so decrease brightness of saturated pixels
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2HSV)
             hsv_image = np.float32(image)
 
             # scale the V value adjustments based on S value
@@ -408,11 +409,11 @@ class PokerImgDetect:
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        if allowed_chars:
+        if card_chars:
             config = CUSTOM_CONFIG.format(psm=psm)
         else:
             config = '--oem 3 --psm {psm}'.format(psm=psm)
-        result = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
+        result: str = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
 
         # can you tell what number has given me hours of trouble with tesseract and TJ font
         if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", ]):

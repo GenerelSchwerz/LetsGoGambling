@@ -1,4 +1,3 @@
-
 import random
 import subprocess
 from typing import Union
@@ -33,6 +32,7 @@ log = Logger("PokerBot")
 def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
     return (tupl[0] + tupl[2]) // 2, (tupl[1] + tupl[3]) // 2
 
+
 class PSInteract(PokerInteract):
     """
     TODO MAJOR! Support multiple tables.
@@ -40,46 +40,66 @@ class PSInteract(PokerInteract):
 
     def __init__(self, detector: PSPokerImgDetect, wm: AWindowManager):
         super().__init__()
-        
 
         # performance in case multiple instances
         if detector:
             self.detector = detector
             if not self.detector.is_initialized():
                 raise ValueError("Detector not initialized")
-        
+
         else:
             self.detector = PSPokerImgDetect()
             self.detector.load_images()
 
-  
         self.wm = wm
-
 
     def shutdown(self):
         self.wm.close()
 
-    def click(self, x: int, y: int, amt=1):
+    def click(
+        self,
+        x: int,
+        y: int,
+        amt=1,
+        bb: Union[tuple[int, int, int, int], None] = None,
+        bias=0.7,
+        travel_time: Union[int, None] = None,
+    ):
         dims = self.wm.get_window_dimensions()
+
+        print("org x, y", x + dims[0], y + dims[2])
+
+        # randomly offset x and y within bb if present, bias towards current x and y
+        if bb is not None:
+            x += int((bb[2] - bb[0]) * bias * random.random())
+            y += int((bb[3] - bb[1]) * bias * random.random())
+
         x1 = x + dims[0]
         y1 = y + dims[2]
 
-        print(f"Clicking at {x}, {y}")
-        print(pyautogui.position())
-        pyautogui.moveTo(x1, y1, duration=0.2, tween=pyautogui.easeInOutQuad)
+        # randomly select travel time if not provided
+        # bias towards longer traveling if x1, y1 is far from current position
+        # far being determined by the distance between the two points relative to dims [x, x1, y, y1]
+        if travel_time is None:
+            cur_x, cur_y = pyautogui.position()
+            travel_time = 0.2 + (0.1 * random.random())
+            if (abs(cur_x - x1) / dims[1]) + (abs(cur_y - y1) / dims[3]) > 0.5:
+                travel_time = 0.2 + (0.2 * random.random())
+
+        print(f"Clicking at {x1}, {y1}")
+        print()
+        pyautogui.moveTo(x1, y1, duration=travel_time, tween=pyautogui.easeInOutQuad)
         pyautogui.click(x1, y1, clicks=amt, interval=0.05)
 
-
-
-    def _ss(self):  # why not make this a class property/field that is updated once per tick? - amelia
+    def _ss(
+        self,
+    ):  # why not make this a class property/field that is updated once per tick? - amelia
         ss = self.wm.ss()
 
         cv2.imwrite(f"./midrun/{int(time.time() * 100_000) / 100_000}.png", ss)
         return ss
-        
-    
 
-    def bet(self, amt: int, sb: int, bb: int, ss=None) -> bool: 
+    def bet(self, amt: int, sb: int, bb: int, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
         #     return False
         if ss is None:
@@ -91,7 +111,7 @@ class PSInteract(PokerInteract):
         clicks = 1
         while min_bet + (clicks * bb) < amt:
             clicks += 1
-        
+
         print("Clicking", clicks, "times", min_bet + (clicks * bb), "of", amt)
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
@@ -102,9 +122,8 @@ class PSInteract(PokerInteract):
             print("Could not find plus button")
             return False
 
+        self.click(*mid(press_plus), clicks, bb=press_plus)
 
-        self.click(*mid(press_plus), clicks)
-        
         button = self.detector.bet_button(ss, threshold=0.8)
         if button is None:
             button = self.detector.raise_button(ss, threshold=0.8)
@@ -113,14 +132,12 @@ class PSInteract(PokerInteract):
                 if button is None:
                     return False
 
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
-    
 
     def reraise(self, amt: int, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
         #     return False
-        
 
         if ss is None:
             ss = self._ss()
@@ -144,13 +161,12 @@ class PSInteract(PokerInteract):
         if button is None:
             return False
 
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
 
     def fold(self, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
         #     return False
-        
 
         if ss is None:
             ss = self._ss()
@@ -158,30 +174,27 @@ class PSInteract(PokerInteract):
 
         if button is None:
             return False
-        
-        self.click(*mid(button))
+
+        self.click(*mid(button), bb=button)
         return True
 
     def call(self, ss=None) -> bool:
         # if self.page != TJPage.TABLE:
         #     return False
 
-
         if ss is None:
             ss = self._ss()
-
 
         button = self.detector.call_button(ss, threshold=0.8)
 
         if button is None:
             return False
-        
-        self.click(*mid(button))
+
+        self.click(*mid(button), bb=button)
         return True
 
     def sit(self) -> bool:
         pass
-
 
 
 if __name__ == "__main__":
@@ -189,7 +202,11 @@ if __name__ == "__main__":
     detector.load_images()
     from ...all.windows import UnixWindowManager
     from ...all.windows import WindowsWindowManager
-    test = PSInteract(detector=detector, path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop")
+
+    test = PSInteract(
+        detector=detector,
+        path_to_exec="/home/generel/.local/share/applications/wine/Programs/PokerStars.net/PokerStars.net.desktop",
+    )
     test.open_pokerstars()
     time.sleep(1)
     thisthing = WindowsWindowManager(title="Untitled - Notepad")

@@ -88,6 +88,10 @@ def ceil_half(num):
     return -(num // -2)
 
 
+def calc_af(calls: int, bets_or_raises: int) -> float:
+    return bets_or_raises / (bets_or_raises + calls) if bets_or_raises + calls != 0 else 0
+
+
 def fold_or_check(current_bet) -> PokerDecisionChoice:
     if current_bet == 0:
         return PokerDecisionChoice.check()

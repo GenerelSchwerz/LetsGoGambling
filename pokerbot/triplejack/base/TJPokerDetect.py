@@ -529,7 +529,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             bottom = y1 + 15
             left = x1
             right = x2
-            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, allowed_chars=False, scale=50)
+            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, card_chars=False, scale=50)
             players.append(((left, top, right, bottom), name))
         return players
 

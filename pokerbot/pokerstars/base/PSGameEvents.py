@@ -55,7 +55,9 @@ class PSEventEmitter(PokerEventHandler):
         table_players = self.detector.table_players(img)
         active_players = list(filter(lambda x: bool(x[0].active), table_players))
 
-        print("[OUR TURN] table:", table_players, "active:", active_players, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
+        to_print = list(map(lambda x: x[0], table_players))
+        to_print_active = list(map(lambda x: x[0], active_players))
+        print("[OUR TURN] table:", to_print, "active:", to_print_active, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
 
         self.emit(PokerEvents.OUR_TURN,
                     hole_cards,

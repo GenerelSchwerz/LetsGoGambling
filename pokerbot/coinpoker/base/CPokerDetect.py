@@ -572,7 +572,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
                     contrast=1.5,
                     invert=True,
                     rotation_angle=0,
-                    allowed_chars=False,
+                    card_chars=False,
                 )
 
                 if text == "":
