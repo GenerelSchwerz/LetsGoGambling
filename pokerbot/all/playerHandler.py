@@ -265,8 +265,9 @@ class PlayerHandler:
             return self.bet_handler.pfr_this_hand(val.name)
 
 
-
-def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False) -> list[tuple[str, float]]:
+def generate_player_bets(
+    players: list[str], sb: int, bb: int, rand_shift=False
+) -> list[tuple[str, float]]:
     # generate a valid bet spread for each player, given standard poker rules.
     # preflop to river.
     bets = [[], [], [], []]
@@ -289,17 +290,19 @@ def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False)
 
     player_len = len(players)
 
-    for stage in range(4): # preflop, flop, turn, river
+    for stage in range(4):  # preflop, flop, turn, river
         last_facing = sb if stage == 0 else 0
         cur_facing = bb if stage == 0 else 0
 
-        
         p_played_this_bet = 0
 
-        p = 0 if stage != PokerStages.PREFLOP else 2
+        if stage == PokerStages.PREFLOP:
+            p = 2
+            bet_dict = {players[0]: sb, players[1]: bb}
+        else:
+            p = 0
+            bet_dict = {}
 
-        bet_dict = {}
-     
         while p_played_this_bet < player_len:
             idx = p % player_len
             player = players[idx]
@@ -307,29 +310,24 @@ def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False)
 
             # print(p_played_this_bet, PokerStages.to_str(stage), player, last_facing, cur_facing, total_pot, folded_players)
 
-            # if stage == 0 and idx < 2: # sb, bb
-            #     p_played_this_bet +=1
-            #     continue
-
             if player in folded_players:
-                p_played_this_bet +=1
+                p_played_this_bet += 1
                 continue
 
             if len(folded_players) == player_len - 1:
                 print(f"player {player} wins! Everyone else folded.")
-                break # everyone folded.
-            
-            choice = random.random() # 0 to 1
-            
+                return bets
+
+            choice = random.random()  # 0 to 1
+
             # raise decision
             if choice > 0.75:
                 # min raise
 
-               
                 p_played_this_bet = 0
                 if cur_facing > 0:
                     print(f"raising {player} at stage", PokerStages.to_str(stage))
-                    tmp = last_facing 
+                    tmp = last_facing
                     bets[stage].append((player, cur_facing + tmp))
                     bet_dict[player] = cur_facing + tmp
                     last_facing = cur_facing
@@ -343,17 +341,16 @@ def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False)
                     last_facing = cur_facing
                     cur_facing = cur_facing + tmp
                     total_pot += tmp
+
             # call decision
             elif 0.25 < choice < 0.75:
                 last_bet = bet_dict.get(player, 0)
-                if last_bet < cur_facing and cur_facing > 0:  
+                if last_bet < cur_facing and cur_facing > 0:
                     bets[stage].append((player, cur_facing))
                     print(f"calling {player} at stage", PokerStages.to_str(stage))
                 else:
                     print(f"checking {player} at stage", PokerStages.to_str(stage))
-  
-            
-            
+
             elif cur_facing == 0:
                 print(f"checking {player} at stage", PokerStages.to_str(stage))
                 pass
@@ -362,14 +359,12 @@ def generate_player_bets(players: list[str], sb: int, bb: int, rand_shift=False)
             else:
                 print(f"folding {player} at stage", PokerStages.to_str(stage))
                 folded_players.append(player)
-            
+
             p_played_this_bet += 1
-            
+
         print()
 
     return bets
-
-
 
 
 def bet_handler_test():
@@ -382,13 +377,16 @@ def bet_handler_test():
 
     bh = BetHandler(sb, bb)
 
-    preflop, flop, turn, river = generate_player_bets(players, 50, 100, rand_shift=False)
+    preflop, flop, turn, river = generate_player_bets(
+        players, 50, 100, rand_shift=False
+    )
     bh.add_bets(*preflop, round=PokerStages.PREFLOP)
     bh.add_bets(*flop, round=PokerStages.FLOP)
     bh.add_bets(*turn, round=PokerStages.TURN)
     bh.add_bets(*river, round=PokerStages.RIVER)
 
     print(bh.get_all_bets())
+    print()
     print(bh.get_bets_for(target))
     print(bh.calculate_aggression_factor(target))
     print(bh.vpip_this_hand(target))
@@ -500,7 +498,7 @@ def player_handler_test():
 
 
 def main():
-    
+
     bet_handler_test()
     # player_handler_test()
     pass
