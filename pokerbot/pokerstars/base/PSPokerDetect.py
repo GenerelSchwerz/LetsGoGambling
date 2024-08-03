@@ -409,7 +409,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             except ValueError:
                 return 0
 
-        for loc in self.template_detect(img, self.POPUP_CENTER_BYTES, threshold=0.9):
+        for loc in self.template_detect(img, self.POPUP_CENTER_BYTES, threshold=0.8):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
             subsection = (loc[0] - w * 5, loc[1] - 5, loc[2] + w * 5, loc[3] + 5)
 
@@ -476,7 +476,9 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                     ret.append((work(subsection1), subsection1))
 
                 else:
+                    print("fuck?")
                     continue
+        print(ret)
         return ret
 
     def current_bets(self, img: MatLike) -> list[int]:
@@ -886,9 +888,11 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     mid_pot = detector.middle_pot(img)
 
     print("midpot", mid_pot)
-    current_bets = detector.current_bets(img)
+ 
+    test = detector.find_popup_info(img)
+    current_bets = list(map(lambda x: x[0], test))
+    
 
-    print("current bets", current_bets)
 
     tot_pot = mid_pot + sum(current_bets)
     current_bet = max(current_bets) if len(current_bets) > 0 else 0
@@ -896,11 +900,15 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
    
     table_players = detector.table_players(img)
 
-    print("players: \n", table_players, len(table_players))
-
     stack_size = detector.stack_size(img)
 
     print(stack_size)
+
+    player_to_bets = associate_bet_locs(table_players, test)
+    print("player_tests=", table_players)
+    print("bets=", player_to_bets)
+
+
 
     for player, loc in table_players:
         color = (0, 255, 0) if player.active else (0, 0, 255)
@@ -924,6 +932,30 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
         )
 
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
+
+        if loc in player_to_bets:
+            bet, bet_loc = player_to_bets[loc]
+            
+            cv2.putText(
+                img2,
+                player.name,
+                (bet_loc[2], bet_loc[1] - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                2,
+            )
+            cv2.putText(
+                img2,
+                str(bet),
+                (bet_loc[0], bet_loc[3] + 15),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                2,
+            )
+
+            cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), color, 2)
 
     filename = ss if isinstance(ss, str) else "current image"
 

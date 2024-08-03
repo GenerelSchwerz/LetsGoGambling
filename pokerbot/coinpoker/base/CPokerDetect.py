@@ -919,9 +919,12 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     # active_players = detector.active_players(img)
 
     table_players = detector.table_players(img)
+
+
     
     player_to_bets = associate_bet_locs(table_players, test)
-    print("players: \n", table_players, len(table_players))
+    print("player_tests=", table_players, len(table_players))
+    print("bets=", player_to_bets)
 
     for player, loc in table_players:
         color = (0, 255, 0) if player.active else (0, 0, 255)
@@ -946,7 +949,7 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
-        if player.name in player_to_bets:
+        if loc in player_to_bets:
             bet, bet_loc = player_to_bets[player.name]
             
             cv2.putText(

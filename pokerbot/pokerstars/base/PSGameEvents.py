@@ -3,6 +3,8 @@ import time
 from typing import Any
 from event_emitter import EventEmitter
 
+from pokerbot.all.utils import associate_bet_locs, order_players_by_sb
+
 from .PSPokerDetect import PSPokerImgDetect
 
 from ...abstract.pokerDetection import PokerDetection
@@ -37,7 +39,25 @@ class PSEventEmitter(PokerEventHandler):
         # eager, this is most likely not necessary.
         big_blind = self.detector.big_blind(img) 
 
-        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind)
+        players = self.detector.table_players(img)
+
+        bets = self.detector.find_popup_info(img)
+
+
+        val = associate_bet_locs(players, bets)
+        pbets = {}
+        for pploc, bet in val.items():
+            for p, ploc in players:
+                if ploc == pploc:
+                    pbets[p] = bet[0]
+                    break # inner
+
+        print(players)
+        print(bets, '\n')
+        print(val)
+        ordered = order_players_by_sb(players, val, sb_amount=small_blind)
+
+        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind, ordered, pbets)
         self.last_hand = hand
 
 
@@ -91,13 +111,21 @@ class PSEventEmitter(PokerEventHandler):
             if (card_len := len(community_cards)) < 5 and card_len > 0:
                 current_stage = PokerStages.SHOWDOWN # currently displaying winning cards
             elif card_len == 0:
-                current_stage = PokerStages.PREFLOP
+                bets = self.detector.current_bets(image)
+                if len(bets) == 0:
+                    current_stage = PokerStages.SETUP
+                else:
+                    current_stage = PokerStages.PREFLOP
             else:
                 current_stage = self.last_stage
 
         else:
             if (card_len := len(community_cards)) == 0:
-                current_stage = PokerStages.PREFLOP
+                bets = self.detector.current_bets(image)
+                if len(bets) == 0:
+                    current_stage = PokerStages.SETUP
+                else:
+                    current_stage = PokerStages.PREFLOP
         
             elif card_len <= 3: # transitioning to flop
                 current_stage = PokerStages.FLOP

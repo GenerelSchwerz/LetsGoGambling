@@ -328,7 +328,7 @@ def treys_to_poker(cards):
     return [treys_lookup_table[card] for card in cards]
 
 
-from typing import Any
+from typing import Any, Union
 from ..abstract.pokerEventHandler import PokerStages
 
 
@@ -380,7 +380,7 @@ def cards_to_stage(cards: list[Any]) -> PokerStages:
 def associate_bet_locs(
     players: list[tuple[Player, tuple[int, int, int, int]]],
     bets: list[tuple[float, tuple[int, int, int, int]]],
-) -> dict[str, tuple[float, tuple[int, int, int, int]]]:
+) -> dict[tuple[int,int,int,int], tuple[float, tuple[int, int, int, int]]]:
     """
     Associate bets with players
     """
@@ -401,30 +401,101 @@ def associate_bet_locs(
 
     for bet_amt, bet_loc in bets:
         # find closest player to bet
-        closest_player = None
+        closest_player_loc = None
         closest_dist = math.inf
+
+        b_mid_x = (bet_loc[0] + bet_loc[2]) / 2
+        b_mid_y = (bet_loc[1] + bet_loc[3]) / 2
 
         for player, player_loc in players:
             # if player_loc[1] > bet_loc[3] or player_loc[3] < bet_loc[1]:
             #     continue
 
-            dist = abs(player_loc[0] - bet_loc[0]) + abs(player_loc[1] - bet_loc[1])
+            p_mid_x = (player_loc[0] + player_loc[2]) / 2
+            p_mid_y = (player_loc[1] + player_loc[3]) / 2
+
+            dist = math.sqrt((b_mid_x - p_mid_x) ** 2 + (b_mid_y - p_mid_y) ** 2)
 
             if dist < closest_dist:
                 closest_dist = dist
-                closest_player = player
+                closest_player_loc = player_loc
 
-        if closest_player is not None:
-            ret[closest_player.name] = (bet_amt, bet_loc)
+        if closest_player_loc is not None:
+            ret[closest_player_loc] = (bet_amt, bet_loc)
             # already_used_bets.add(bet_amt)
 
     return ret
+
+def order_players_by_sb(
+    players: list[tuple[Player, tuple[int, int, int, int]]],
+    bets: dict[tuple[int, int, int, int], tuple[float, tuple[int, int, int, int]]], # player position, bet amount, bet location
+    sb_amount: Union[float, None] = None,
+    board_bb: tuple[int, int, int, int] = None,
+) -> list[Player]:
+    """
+    Order players by their position relative to the dealer.
+
+    :param players: list of tuples containing Player objects and their bounding box coordinates.
+    :param bets: Dictionary mapping player locations to their bet amounts and coordinates.
+    :param sb_amount: The amount of the small blind.
+    :return: list of Player objects ordered by their position relative to the dealer.
+    """
+
+
+    if sb_amount is None:
+        sb_amount = min([bet[0] for bet in bets.values()])
+
+        # verify there is only one instance of the small blind amount
+        if len([bet[0] for bet in bets.values() if bet[0] == sb_amount]) > 1:
+            raise ValueError("Multiple players with the same small blind amount")
+
+    # Identify the small blind player
+    sb_player_loc = next(
+        loc for loc, (amount, _) in bets.items() if amount == sb_amount
+    )
+
+    if board_bb:
+        # Define the center of the table
+        center_x, center_y = (board_bb[0] + board_bb[2]) // 2, (
+            board_bb[1] + board_bb[3]
+        ) // 2
+    else:
+        # get center of bounding box containing all players
+        x1 = min([box[0] for _, box in players])
+        y1 = min([box[1] for _, box in players])
+        x2 = max([box[2] for _, box in players])
+        y2 = max([box[3] for _, box in players])
+        center_x, center_y = (x1 + x2) // 2, (y1 + y2) // 2
+
+    # Calculate angles for each player relative to the center
+    def calculate_angle(box):
+        x1, y1, x2, y2 = box
+        player_center_x = (x1 + x2) / 2
+        player_center_y = (y1 + y2) / 2
+        angle = math.atan2(player_center_y - center_y, player_center_x - center_x)
+        return angle
+
+    # Get active players and calculate angles
+    player_info = [(player, box, calculate_angle(box)) for player, box in players]
+
+    # Sort players based on their angle in a clockwise manner
+    player_info.sort(key=lambda item: item[2])
+
+   
+    # Rotate list to start with the small blind
+    sb_index = next(
+        i for i, (_, loc, _) in enumerate(player_info) if loc == sb_player_loc
+    )
+    ordered_players = player_info[sb_index:] + player_info[:sb_index]
+
+    # Return only the player objects in order
+    return [player for player, _, _ in ordered_players]
 
 
 def associate_bets(
     players: list[tuple[Player, tuple[int, int, int, int]]],
     bets: list[tuple[float, tuple[int, int, int, int]]],
-) -> dict:
+) -> dict[tuple[int, int, int, int], float]:
 
     ret = associate_bet_locs(players, bets)
 
