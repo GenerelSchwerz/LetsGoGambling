@@ -73,8 +73,8 @@ class WindowsWindowManager(AWindowManager):
                 self.window_title = GetWindowText(hwnd)
         self.window_id = window_id
 
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0,0)
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].resize(1080, 720)
+        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
+        pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
 
     def assign_to_window_title(self, window_title: str):
         window = FindWindow(None, window_title)
@@ -82,8 +82,8 @@ class WindowsWindowManager(AWindowManager):
         self.window_title = window_title
         self.window_id = pid
 
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0,0)
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].resize(1080, 720)
+        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
+        pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
 
     def get_window_dimensions(self) -> tuple[int, int, int, int]:
         window_handle = FindWindow(None, self.window_title)
