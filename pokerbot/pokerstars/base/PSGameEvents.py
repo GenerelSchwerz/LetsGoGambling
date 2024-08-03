@@ -3,6 +3,8 @@ import time
 from typing import Any
 from event_emitter import EventEmitter
 
+from pokerbot.all.utils import associate_bet_locs, order_players_by_sb
+
 from .PSPokerDetect import PSPokerImgDetect
 
 from ...abstract.pokerDetection import PokerDetection
@@ -37,7 +39,25 @@ class PSEventEmitter(PokerEventHandler):
         # eager, this is most likely not necessary.
         big_blind = self.detector.big_blind(img) 
 
-        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind)
+        players = self.detector.table_players(img)
+
+        bets = self.detector.find_popup_info(img)
+
+
+        val = associate_bet_locs(players, bets)
+        pbets = {}
+        for pploc, bet in val.items():
+            for p, ploc in players:
+                if ploc == pploc:
+                    pbets[p] = bet[0]
+                    break # inner
+
+        print(players)
+        print(bets, '\n')
+        print(val)
+        ordered = order_players_by_sb(players, val, sb_amount=small_blind)
+
+        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind, ordered, pbets)
         self.last_hand = hand
 
 
@@ -53,10 +73,11 @@ class PSEventEmitter(PokerEventHandler):
             facing_bet = max(current_bets)
 
         table_players = self.detector.table_players(img)
+        active_players = list(filter(lambda x: bool(x[0].active), table_players))
 
-        active_players = self.detector.active_players(img)
-
-        print("[OUR TURN] table:", table_players, "active:", active_players, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
+        to_print = list(map(lambda x: x[0], table_players))
+        to_print_active = list(map(lambda x: x[0], active_players))
+        print("[OUR TURN] table:", to_print, "active:", to_print_active, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
 
         self.emit(PokerEvents.OUR_TURN,
                     hole_cards,
@@ -77,6 +98,7 @@ class PSEventEmitter(PokerEventHandler):
         start = time.time()
         try:
             community_cards = self.detector.community_cards(image)
+            current_hand = self.detector.hole_cards(image)
         except (KeyError, ValueError) as e:
             # OCR failed somewhere, so we're just going to skip this iteration for the time being.
             print(f"Error in detecting community cards: {e}")
@@ -89,13 +111,21 @@ class PSEventEmitter(PokerEventHandler):
             if (card_len := len(community_cards)) < 5 and card_len > 0:
                 current_stage = PokerStages.SHOWDOWN # currently displaying winning cards
             elif card_len == 0:
-                current_stage = PokerStages.PREFLOP
+                bets = self.detector.current_bets(image)
+                if len(bets) == 0:
+                    current_stage = PokerStages.SETUP
+                else:
+                    current_stage = PokerStages.PREFLOP
             else:
                 current_stage = self.last_stage
 
         else:
             if (card_len := len(community_cards)) == 0:
-                current_stage = PokerStages.PREFLOP
+                bets = self.detector.current_bets(image)
+                if len(bets) == 0:
+                    current_stage = PokerStages.SETUP
+                else:
+                    current_stage = PokerStages.PREFLOP
         
             elif card_len <= 3: # transitioning to flop
                 current_stage = PokerStages.FLOP
@@ -115,19 +145,18 @@ class PSEventEmitter(PokerEventHandler):
                 return
                 # raise ValueError(f"Invalid number of community cards, found {len(community_cards)}")
 
-        current_hand = None
+        # current_hand = None
     
         if current_stage != self.last_stage:
             self.emit(PokerEvents.NEW_STAGE, self.last_stage, current_stage)
 
             if current_stage == PokerStages.PREFLOP:
-                current_hand = self.detector.hole_cards(image)
                 if (current_hand != self.last_hand or len(current_hand)== 0):
                     self.__emit_new_hand(image, current_hand)
              
 
         elif current_stage == PokerStages.PREFLOP:
-            current_hand = self.detector.hole_cards(image)
+            # current_hand = self.detector.hole_cards(image)
 
             if current_hand != self.last_hand and (hand_len := len(current_hand)) == 2:
                 if hand_len < 2:

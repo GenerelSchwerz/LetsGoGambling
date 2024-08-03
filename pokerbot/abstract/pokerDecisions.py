@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 from treys import Card
 
+from pokerbot.abstract.pokerDetection import Player
+
 from .pokerEventHandler import PokerEvents, PokerStages, PokerEventHandler
 
 
@@ -36,7 +38,7 @@ class PokerDecisionChoice:
 
 class PokerDecisionMaking(ABC):
     
-    @abstractmethod
+
     def on_turn(self,
                 hole_cards: list[Card],
                 community_cards: list[Card],
@@ -50,3 +52,14 @@ class PokerDecisionMaking(ABC):
                 active_opponents: int,
                 ) -> PokerDecisionChoice:
         pass
+
+    def on_new_hand(
+            self,
+            hole_cards: list[Card],
+            big_blind: int,
+            small_blind: int,
+            players: list[Player],
+            bets: dict[Player, float]
+            ):
+        pass
+    

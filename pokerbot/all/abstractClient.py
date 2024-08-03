@@ -2,9 +2,11 @@ import time
 
 
 from ..abstract.pokerEventHandler import PokerEventHandler, PokerEvents
-from ..abstract.pokerDetection import PokerDetection
+from ..abstract.pokerDetection import Player, PokerDetection
 from ..abstract.pokerInteract import PokerInteract
 from ..abstract.pokerDecisions import PokerDecisionChoice, PokerDecisionMaking
+from ..abstract.pokerInit import MultiTableSetup
+
 
 from treys import Card
 
@@ -80,10 +82,12 @@ class AClient:
         else:
             print("bet succeeded")
 
-    def on_new_hand(self, hole_cards: list[Card], bb: int, sb: int):
+    def on_new_hand(self, hole_cards: list[Card], bb: int, sb: int, players: list[Player], bets: dict[Player, float]):
         print("New hand", Card.ints_to_pretty_str(hole_cards), sb, bb)
         self.cur_hand_bb = bb
         self.cur_hand_sb = sb
+
+        self.logic.on_new_hand(hole_cards, bb, sb, players, bets)
 
     def on_turn(
         self,
@@ -123,14 +127,12 @@ class AClient:
 
         print("Time taken for decision:", time.time() - start)
 
-    def start(self, username: str, password: str):
+    def start(self):
         # if self.interactor is not None:
         #     self.interactor.shutdown()
 
         if not self.detector.is_initialized():
             self.detector.load_images()
-
-        self.interactor.start(username, password)
 
         self.event_handler.on(PokerEvents.OUR_TURN, self.on_turn)
         self.event_handler.on(PokerEvents.NEW_HAND, self.on_new_hand)
@@ -142,6 +144,8 @@ class AClient:
 
         self.event_handler.remove(PokerEvents.OUR_TURN, self.on_turn)
         self.event_handler.remove(PokerEvents.NEW_HAND, self.on_new_hand)
+
+
 
 
 def main():

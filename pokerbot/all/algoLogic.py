@@ -4,6 +4,8 @@ import time
 
 from treys import Card, Deck
 import random
+
+from pokerbot.abstract.pokerDetection import Player
 from ..abstract.pokerDecisions import PokerDecisionMaking, PokerDecisionChoice
 from ..abstract.pokerEventHandler import PokerStages
 from ..all.utils import *
@@ -411,6 +413,17 @@ class AlgoDecisions(PokerDecisionMaking):
                 f"Preflop equity greater than pot odds, calling ({equity} > {pot_odds})"
             )
             return PokerDecisionChoice.call()
+
+    
+    def on_new_hand(self, hole_cards: list[Card], big_blind: int, small_blind: int, players: list[Player], bets: dict[Player, float]):
+        log.info(
+            f"New hand! Hole cards: {Card.ints_to_pretty_str(hole_cards)}, BB: {big_blind}, SB: {small_blind} + \
+            Players: {players}, Bets: {bets}"
+        )
+        # self.min_threshold = PokerHands.HIGH_CARD
+        # self.currently_bluffing = False
+        # self.currently_betting = False
+        # self.was_reraised = False
 
     def on_turn(
         self,

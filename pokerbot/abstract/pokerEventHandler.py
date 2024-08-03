@@ -18,6 +18,8 @@ class PokerEvents:
                     - hand: list[Card]
                     - big_blind: int
                     - small_blind: int
+                    - players: list[Player] # in order of the table preflop (sb, bb, utg, etc.)
+                    - bets: dict[Player, float]
 
             - NEW_STAGE
                 Args:
@@ -68,7 +70,8 @@ class PokerEvents:
 
 
 class PokerStages:
-    UNKNOWN = -1
+    UNKNOWN = -2
+    SETUP = -1
     PREFLOP = 0
     FLOP = 1
     TURN = 2
@@ -84,6 +87,7 @@ class PokerStages:
         SHOWDOWN: "Showdown"
     
     }
+    
 
     @staticmethod
     def to_str(stage: int) -> str:

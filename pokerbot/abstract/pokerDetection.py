@@ -11,7 +11,16 @@ class Player:
     stack: int # TODO: needed? maybe not
     active: Union[bool, None] = None
 
+    def __key(self):
+        return (self.name, self.stack, self.active)
 
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        if isinstance(other, Player):
+            return self.__key() == other.__key()
+        return NotImplemented
 
 class PokerDetection(ABC):
     def __init__(self):

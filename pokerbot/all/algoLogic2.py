@@ -5,7 +5,7 @@ from ..abstract.pokerEventHandler import PokerStages
 from ..abstract.pokerDecisions import PokerDecisionMaking, PokerDecisionChoice
 from ..abstract.pokerDetection import Player
 
-from ..all.utils import PokerHands
+from ..all.utils import PokerHands, is_hand_possible
 
 import random
 
@@ -19,26 +19,12 @@ import time
 
 
 def has_flush_draw(community_cards: list[Card], hole_cards: list[Card] = []) -> bool:
-    suits = [Card.get_suit_int(card) for card in hole_cards + community_cards]
-    for suit in suits:
-        if suits.count(suit) >= 4:
-            return True
-    return False
+    return is_hand_possible(community_cards + hole_cards, PokerHands.FLUSH)
 
 
 def has_straight_draw(community_cards: list[Card], hole_cards: list[Card] = []) -> bool:
-    # straight draw is defined as having 4 cards in a row
-    ranks = [Card.get_rank_int(card) for card in hole_cards + community_cards]
-    ranks.sort()
-    count = 0
-    for i in range(1, len(ranks)):
-        if ranks[i] - ranks[i - 1] == 1:
-            count += 1
-            if count == 3:
-                return True
-        else:
-            return False
-    return False
+    return is_hand_possible(community_cards + hole_cards, PokerHands.STRAIGHT)
+
 
 
 # checks if list of cards with length 3 or 4 has three of a kind
@@ -82,7 +68,7 @@ def fast_calculate_equity(
     community_cards: list[Card],
     sim_time=4000,
     runs=1500,
-    threshold_classes: Union[int, tuple[int, int]] = PokerHands.HIGH_CARD,
+    threshold_classes: Union[int, list[int]] = PokerHands.HIGH_CARD,
     threshold_players=1,
     opponents=1,
     opps_satisfy_thresh_now=False,
@@ -100,12 +86,17 @@ def fast_calculate_equity(
     board_len = len(community_cards)
 
     # introducing stochastic variance here
-    if is_lower := (is_middle := isinstance(threshold_classes, tuple)):
-        threshold_class = threshold_classes[0]
+
+    idx = 0
+    if is_range := (isinstance(threshold_classes, list) or isinstance(threshold_classes, tuple)):
+        idx = random.randint(0, len(threshold_classes) - 1)
+        threshold_classes = threshold_classes[idx]
+
     elif isinstance(threshold_classes, int):
-        threshold_class = threshold_classes
+        threshold_classes = threshold_classes
     else:
         raise ValueError("threshold_classes must be an int or a tuple of two ints")
+
 
     start = time.time()
     run_c = 0
@@ -175,9 +166,9 @@ def fast_calculate_equity(
 
             our_rank = evaluator.evaluate(hole_cards, full_board)
 
-            if is_middle:
-                threshold_class = threshold_classes[int(is_lower)]
-                is_lower = not is_lower
+            if is_range:
+                threshold_class = threshold_classes[idx]
+                idx = (idx + 1) % len(threshold_classes)
 
             for idx in range(opp_count, opponents):
                 evals[idx] = evaluator.evaluate(opponents_cards[idx], full_board)
