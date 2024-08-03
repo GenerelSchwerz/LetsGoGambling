@@ -664,10 +664,13 @@ class AlgoDecisions(PokerDecisionMaking):
                 log.info("I don't think we're winning this one boys, bet less")
                 betting_equity = betting_equity / 2
 
-            # calculating the bet at which the pot odds are equal to the equity
-            ideal_bet = (betting_equity * mid_pot) / (
-                1 - (2 * betting_equity)
-            )  # you can derive this equation yourself
+            if betting_equity > 0.5:
+                ideal_bet = stack_size
+            else:
+                # calculating the bet at which the pot odds are equal to the equity
+                ideal_bet = (betting_equity * mid_pot) / (
+                    1 - (2 * betting_equity)
+                )  # you can derive this equation yourself
             log.info(f"Ideal bet: {ideal_bet}")
         if ideal_bet < 0:
             raise Exception("Ideal bet is negative")
