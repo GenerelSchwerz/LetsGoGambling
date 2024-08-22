@@ -40,6 +40,10 @@ class PokerDetection(ABC):
         pass
 
     @abstractmethod
+    def current_bets_and_locs(self) -> list[tuple[int, tuple[int, int, int, int]]]:
+        pass
+
+    @abstractmethod
     def current_bets(self) -> list[int]:
         pass
 
@@ -76,11 +80,11 @@ class PokerDetection(ABC):
         pass
     
     @abstractmethod
-    def table_players(self) -> list:
+    def table_players(self) ->  list[tuple[Player, tuple[int, int, int, int]]]:
         pass
 
     @abstractmethod
-    def active_players(self) -> list:
+    def active_players(self) -> list[Player, tuple[int, int, int, int]]:
         pass
 
 

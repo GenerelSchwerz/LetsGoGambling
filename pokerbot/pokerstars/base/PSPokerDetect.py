@@ -459,7 +459,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
         return self.ident_near_popup(img, True, pot_area)
 
-    def find_bet_infos(
+    def current_bets_and_locs(
         self, img: MatLike
     ) -> list[tuple[int, tuple[int, int, int, int]]]:
         ret = []
@@ -583,7 +583,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         return ret
 
     def current_bets(self, img: MatLike) -> list[int]:
-        return list(map(lambda x: x[0], self.find_bet_infos(img)))
+        return list(map(lambda x: x[0], self.current_bets_and_locs(img)))
 
     def current_bet(self, img: MatLike) -> int:
         # TODO: obsolesce this method by tracking player bet and max of current_bets()
@@ -999,7 +999,7 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     mid_pot = detector.middle_pot(img)
     tot_pot = detector.total_pot(img)
 
-    test = detector.find_bet_infos(img)
+    test = detector.current_bets_and_locs(img)
     current_bets = list(map(lambda x: x[0], test))
 
     tot_pot1 = mid_pot + sum(current_bets)

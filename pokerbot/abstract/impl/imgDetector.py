@@ -12,9 +12,10 @@ import pytesseract
 
 
 
-class PokerImgDetect:
+class PokerImgDetect():
 
     def __init__(self, opts: PokerImgOpts) -> None:
+        # super().__init__()
         self.opts = opts
  
         self.SIT_BUTTON_BYTES = None

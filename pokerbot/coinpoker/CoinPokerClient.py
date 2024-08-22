@@ -4,7 +4,9 @@ import time
 from ..abstract.pokerEventHandler import PokerEvents
 
 from ..all.abstractClient import AClient
-from .base import CPokerImgDetect, CPokerInteract, CPokerEventEmitter
+from ..all.gameEvents import ImgPokerEventEmitter
+
+from .base import CPokerImgDetect, CPokerInteract
 
 
 import os
@@ -14,15 +16,15 @@ import pyautogui
 
 import time
 
-from pokerbot.all.abstractClient import AClient
-from pokerbot.all.algoLogic import AlgoDecisions
-from pokerbot.pokerstars.base import PSInteract
-from pokerbot.pokerstars.base.PSGameEvents import PSEventEmitter
-from pokerbot.pokerstars.base.PSPokerDetect import PSPokerImgDetect
+from ..all.abstractClient import AClient
+from ..all.algoLogic import AlgoDecisions
 
 
 from ..abstract.pokerInit import MultiTableSetup
 from ..all.windows import get_all_windows_matching, UnixWindowManager
+
+import logging
+log = logging.getLogger(__name__)
 
 
 def run_ticks(_bot: AClient, time_split=2):
@@ -59,8 +61,8 @@ def start_table(window_id: int):
     detector = CPokerImgDetect()
     detector.load_wm(wm)
     detector.load_images()
-    event_handler = CPokerEventEmitter(detector=detector)
 
+    event_handler = ImgPokerEventEmitter(detector=detector)
     interactor = CPokerInteract(detector=detector, wm=wm)
 
     logic = AlgoDecisions()
@@ -74,7 +76,7 @@ def start_table(window_id: int):
     )
 
     try:
-        client.start(None, None)
+        client.start()
         client.event_handler.on(PokerEvents.TICK, _print)
         run_ticks(client, 2)
     except KeyboardInterrupt:
@@ -140,6 +142,11 @@ class CPokerInit(MultiTableSetup):
 
 def main():
     import os
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s|%(name)s]: %(message)s",
+        datefmt="%m-%d %H:%M:%S",
+    )
 
     # clear midrun
 
@@ -160,11 +167,11 @@ def main():
 
     try:
         full_client = CPokerInit(exec_path)
-        full_client.start()
-        time.sleep(5)
-        full_client.login(acc["username"], acc["password"])
+        # full_client.start()
+        # time.sleep(15)
+        # full_client.login(acc["username"], acc["password"])
 
-        time.sleep(20)
+        # time.sleep(20)
 
         clients = full_client.start_tables(1)
         full_client.wait_for_all(clients)

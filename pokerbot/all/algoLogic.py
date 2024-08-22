@@ -10,12 +10,8 @@ from ..abstract.pokerDecisions import PokerDecisionMaking, PokerDecisionChoice
 from ..abstract.pokerEventHandler import PokerStages
 from ..all.utils import *
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s|%(name)s]: %(message)s",
-    datefmt="%m-%d %H:%M:%S",
-)
-log = logging.getLogger("BotmeliaLogic")
+
+log = logging.getLogger(__name__)
 
 
 class AlgoDecisionMode:
@@ -696,7 +692,7 @@ class AlgoDecisions(PokerDecisionMaking):
                     )
                     self.currently_bluffing = True
                     return PokerDecisionChoice.bet(
-                        int((0.5 + (0.5 * random.random())) * total_pot)
+                        float((0.5 + (0.5 * random.random())) * total_pot)
                     )
                 elif (
                     total_pot <= max(0.05 * stack_size, 16) * big_blind
@@ -708,7 +704,7 @@ class AlgoDecisions(PokerDecisionMaking):
                     )
                     self.currently_bluffing = True
                     return PokerDecisionChoice.bet(
-                        int((0.5 + (0.5 * random.random())) * total_pot)
+                        float((0.5 + (0.5 * random.random())) * total_pot)
                     )
 
             if facing_bet == 0:
@@ -730,10 +726,10 @@ class AlgoDecisions(PokerDecisionMaking):
                 log.info("Not worth raising")
                 return PokerDecisionChoice.call()
             else:
-                log.info("Raising")
+                log.info(f"Raising to {ideal_bet}")
                 if equity < 0.9:
                     return PokerDecisionChoice.bet(
-                        min(int(ideal_bet), stack_size, mid_pot)
+                        min(float(ideal_bet), stack_size, mid_pot)
                     )
                     # don't bet more than pot ever, helps to keep variance low with a kinda dumb bot
                 else:

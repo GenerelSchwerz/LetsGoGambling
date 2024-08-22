@@ -24,9 +24,9 @@ import os
 
 import cv2
 
-from logging import Logger
+import logging
 
-log = Logger("PokerBot")
+log = logging.getLogger(__name__)
 
 
 def mid(tupl: tuple[int, int, int, int]) -> tuple[int, int]:
@@ -58,13 +58,38 @@ class CPokerInteract(PokerInteract):
             raise RuntimeError("Window manager not initialized")
 
 
-    def click(self, x: int, y: int, amt=1):
+    def click(
+        self,
+        x: int,
+        y: int,
+        amt=1,
+        bb: Union[tuple[int, int, int, int], None] = None,
+        bias=0.7,
+        travel_time: Union[int, None] = None,
+    ):
         dims = self.wm.get_window_dimensions()
+
+        log.debug("org x, y wanted for clicks:", x + dims[0], y + dims[2])
+
+        # randomly offset x and y within bb if present, bias towards current x and y
+        if bb is not None:
+            x += int((bb[2] - bb[0]) * bias * random.random())
+            y += int((bb[3] - bb[1]) * bias * random.random())
+
         x1 = x + dims[0]
         y1 = y + dims[2]
 
-        print(f"Clicking at {x}, {y}")
-        print(pyautogui.position())
+        # randomly select travel time if not provided
+        # bias towards longer traveling if x1, y1 is far from current position
+        # far being determined by the distance between the two points relative to dims [x, x1, y, y1]
+        if travel_time is None:
+            cur_x, cur_y = pyautogui.position()
+            travel_time = 0.2 + (0.1 * random.random())
+            if (abs(cur_x - x1) / dims[1]) + (abs(cur_y - y1) / dims[3]) > 0.5:
+                travel_time = 0.2 + (0.2 * random.random())
+
+        log.debug(f"Clicking at {x1}, {y1}")
+        pyautogui.moveTo(x1, y1, duration=travel_time, tween=pyautogui.easeInOutQuad)
         pyautogui.click(x1, y1, clicks=amt, interval=0.05)
 
 
@@ -83,18 +108,25 @@ class CPokerInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        clicks = int((sb * round((amt - self.detector.min_bet(ss)) / sb)) / sb)
+        min_bet = self.detector.min_bet(ss)
+
+        # clicks increment by big blind. So starting amt is min_bet, then add X big blinds to get to amt
+        clicks = 1
+        while min_bet + (clicks * bb) < amt:
+            clicks += 1
+
+        log.debug("Clicking", clicks, "times", min_bet + (clicks * bb), "of", amt)
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
+            log.debug("Adjusted clicks to", clicks)
 
         press_plus = self.detector.plus_button(ss, threshold=0.8)
         if press_plus is None:
-            print("Could not find plus button")
+            log.debug("Could not find plus button")
             return False
 
+        self.click(*mid(press_plus), clicks, bb=press_plus)
 
-        self.click(*mid(press_plus), clicks)
-        
         button = self.detector.bet_button(ss, threshold=0.8)
         if button is None:
             button = self.detector.raise_button(ss, threshold=0.8)
@@ -103,7 +135,7 @@ class CPokerInteract(PokerInteract):
                 if button is None:
                     return False
 
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
     
 
@@ -119,7 +151,7 @@ class CPokerInteract(PokerInteract):
         if button is None:
             return False
 
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
 
     def check(self, ss=None) -> bool:
@@ -134,7 +166,7 @@ class CPokerInteract(PokerInteract):
         if button is None:
             return False
 
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
 
     def fold(self, ss=None) -> bool:
@@ -149,7 +181,7 @@ class CPokerInteract(PokerInteract):
         if button is None:
             return False
         
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
 
     def call(self, ss=None) -> bool:
@@ -166,7 +198,7 @@ class CPokerInteract(PokerInteract):
         if button is None:
             return False
         
-        self.click(*mid(button))
+        self.click(*mid(button), bb=button)
         return True
 
     def sit(self) -> bool:

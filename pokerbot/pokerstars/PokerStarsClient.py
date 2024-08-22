@@ -6,7 +6,7 @@ from pokerbot.all.windows.xdotoolUtils import get_window_id_dimensions, resize_w
 from ..abstract.pokerEventHandler import PokerEvents
 
 from ..all.abstractClient import AClient
-from .base import PSPokerImgDetect, PSInteract, PSEventEmitter
+from .base import PSPokerImgDetect, PSInteract
 
 
 import os
@@ -16,11 +16,11 @@ import pyautogui
 
 import time
 
-from pokerbot.all.abstractClient import AClient
-from pokerbot.all.algoLogic import AlgoDecisions
-from pokerbot.pokerstars.base import PSInteract
-from pokerbot.pokerstars.base.PSGameEvents import PSEventEmitter
-from pokerbot.pokerstars.base.PSPokerDetect import PSPokerImgDetect
+from ..all.abstractClient import AClient
+from ..all.algoLogic import AlgoDecisions
+from ..pokerstars.base import PSInteract
+from ..all.gameEvents import ImgPokerEventEmitter
+from ..pokerstars.base.PSPokerDetect import PSPokerImgDetect
 
 
 from ..abstract.pokerInit import MultiTableSetup
@@ -61,7 +61,7 @@ def start_table(window_id: int):
     detector = PSPokerImgDetect()
     detector.load_wm(wm)
     detector.load_images()
-    event_handler = PSEventEmitter(detector=detector)
+    event_handler = ImgPokerEventEmitter(detector=detector)
 
     interactor = PSInteract(detector=detector, wm=wm)
 
@@ -169,7 +169,7 @@ def main():
 
 
     # full_client.login(acc["username"], acc["password"])
-    time.sleep(10)
+    time.sleep(30)
     clients = full_client.start_tables(1)
 
     print(clients)

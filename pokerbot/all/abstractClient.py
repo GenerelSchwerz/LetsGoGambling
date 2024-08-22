@@ -10,6 +10,10 @@ from ..abstract.pokerInit import MultiTableSetup
 
 from treys import Card
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class AClient:
 
@@ -43,47 +47,47 @@ class AClient:
         if not res:
             check = self.interactor.check()
             if not check:
-                print("fold failed")
+                log.error("fold failed")
             else:
-                print("fold failed, but check succeeded")
+                log.debug("fold failed, but check succeeded")
         else:
-            print("fold succeeded")
+            log.debug("fold succeeded")
 
     def check(self):
         res = self.interactor.check()
         if not res:
             call = self.interactor.call()
             if not call:
-                print("check failed")
+                log.error("check failed")
             else:
-                print("check failed, but call succeeded")
+                log.debug("check failed, but call succeeded")
         else:
-            print("check succeeded")
+            log.debug("check succeeded")
 
     def call(self):
         res = self.interactor.call()
         if not res:
             check = self.interactor.check()
             if not check:
-                print("call failed")
+                log.error("call failed")
             else:
-                print("call failed, but check succeeded")
+                log.debug("call failed, but check succeeded")
         else:
-            print("call succeeded")
+            log.debug("call succeeded")
 
     def bet(self, amount: int):
         res = self.interactor.bet(amount, self.cur_hand_sb, self.cur_hand_bb)
         if not res:
             raise_ = self.interactor.reraise(amount)
             if not raise_:
-                print("bet failed")
+                log.error("bet failed")
             else:
-                print("bet failed, but raise succeeded")
+                log.debug("bet failed, but raise succeeded")
         else:
-            print("bet succeeded")
+            log.debug("bet succeeded")
 
     def on_new_hand(self, hole_cards: list[Card], bb: int, sb: int, players: list[Player], bets: dict[Player, float]):
-        print("New hand", Card.ints_to_pretty_str(hole_cards), sb, bb)
+        log.info(f"New hand {Card.ints_to_pretty_str(hole_cards)} {sb} {bb}")
         self.cur_hand_bb = bb
         self.cur_hand_sb = sb
 
@@ -101,7 +105,7 @@ class AClient:
         stack_size: int,
         active_opponents: int,
     ):
-        print("Our turn")
+        log.info("Our turn")
         start = time.time()
         result = self.logic.on_turn(
             hole_cards,
@@ -125,7 +129,7 @@ class AClient:
         elif result.choice == PokerDecisionChoice.BET:
             self.bet(result.amount)
 
-        print("Time taken for decision:", time.time() - start)
+        log.info(f"Time taken for decision: {time.time() - start}")
 
     def start(self):
         # if self.interactor is not None:

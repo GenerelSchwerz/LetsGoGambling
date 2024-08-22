@@ -20,12 +20,16 @@ from ...all.utils import *
 
 import time
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 def pretty_str_to_float(s: str) -> float:
     try:
         return float(s.replace(",", "").replace("$", "").replace(" ", ""))
     except ValueError:
-        print(f"Could not convert number to int: {s}")
+        log.error(f"Could not convert number to int: {s}")
         return 0
 
 
@@ -123,7 +127,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
             high_offset,
         )
 
-        print(section, h1, high_offset - low_offset)
+        log.debug(section, h1, high_offset - low_offset)
 
         # cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
         # cv2.imshow(
@@ -139,7 +143,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
         if popup_boundary is None:
-            print("no popup boundary found")
+            log.error("no popup boundary found")
             return 0
 
         subsection = (
@@ -149,7 +153,6 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
             loc[3] + h // 3,
         )
 
-        print(subsection)
         # print(w, h)
         # cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
         # cv2.imshow(
@@ -369,6 +372,8 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
 
         if single_pot is None:
             return 0
+            # cv2.imwrite("cpoker_failed_pot.png", img)
+            # log.error("Couldn't find middle pot, not done yet!")
             # raise NotImplementedError("Couldn't find middle pot, not done yet")
 
             main_pot = self.ident_one_template(
@@ -397,7 +402,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
     def total_pot(self, img: MatLike) -> int:
         return self.middle_pot(img) + sum(self.current_bets(img))
 
-    def find_popup_info(
+    def current_bets_and_locs(
         self, img: MatLike
     ) -> list[tuple[int, tuple[int, int, int, int]]]:
 
@@ -446,7 +451,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
                 check_area, self.POPUP_BOUNDARY_BYTES, threshold=0.9
             )
             if found is not None:
-                print("found right popup (wanted info to the left)")
+                log.debug("found right popup (wanted info to the left)")
                 # make a new subsection between the right popup and the center popup
                 subsection1 = (
                     loc[0] + w,
@@ -472,7 +477,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
         return ret
 
     def current_bets(self, img: MatLike) -> list[int]:
-        return list(map(lambda x: x[0], self.find_popup_info(img)))
+        return list(map(lambda x: x[0], self.current_bets_and_locs(img)))
 
     def current_bet(self, img: MatLike) -> int:
         # TODO: obsolesce this method by tracking player bet and max of current_bets()
@@ -576,7 +581,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
                 )
 
                 if text == "":
-                    print("heck")
+                    log.error("Could not detect name properly.")
                     text = "DUNNO"
                     # continue
              
@@ -687,6 +692,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
                         img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2
                     )
                     cv2.imwrite(f"error-{int(time.time())}_2.png", img)
+                    log.error("OCR failed to find card's text")
                     raise ValueError("OCR failed to find card's text")
 
                 try:
@@ -908,7 +914,7 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     # 
     # print(test)
 
-    test = detector.find_popup_info(img)
+    test = detector.current_bets_and_locs(img)
     current_bets = list(map(lambda x: x[0], test))
 
     print("current bets", current_bets)
@@ -949,8 +955,9 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
         cv2.rectangle(img2, (loc[0], loc[1]), (loc[2], loc[3]), color, 2)
 
+
         if loc in player_to_bets:
-            bet, bet_loc = player_to_bets[player.name]
+            bet, bet_loc = player_to_bets[loc]
             
             cv2.putText(
                 img2,

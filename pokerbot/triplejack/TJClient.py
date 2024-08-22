@@ -3,34 +3,16 @@ import json
 import random
 import time
 from typing import Union
-from pokerbot.abstract.pokerDecisions import PokerDecisionChoice
 
 from pokerbot.triplejack.driver_creator import create_tj_driver
 
 from ..all.abstractClient import AClient
-from .base import TJPokerDetect, TJInteract, TJEventEmitter
+from .base import TJPokerDetect, TJInteract
 
 
-import json
-import time
-
-from ..abstract.pokerEventHandler import PokerEvents
-
-from ..all.abstractClient import AClient
-from .base import TJPokerDetect, TJInteract, TJEventEmitter
-
-
-import os
-import subprocess
-
-import pyautogui
-
-import time
 
 from pokerbot.all.abstractClient import AClient
 from pokerbot.all.algoLogic import AlgoDecisions
-from pokerbot.pokerstars.base.PSGameEvents import PSEventEmitter
-from pokerbot.pokerstars.base.PSPokerDetect import PSPokerImgDetect
 
 
 from ..abstract.pokerInit import MultiTableSetup
