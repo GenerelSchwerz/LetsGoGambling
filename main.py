@@ -111,8 +111,10 @@ def fast_calculate_equity(
             #     continue
 
             if board_class <= threshold_class:
-                # if threshold_class == PokerHands.HIGH_CARD:
-                #     opponent_rank = hand_evaluator.evaluate(opponent, full_board)
+                
+                # if threshhold is high card, just evaluate every hand.
+                if threshold_class == PokerHands.HIGH_CARD:
+                    opponent_rank = hand_evaluator.evaluate(opponent, full_board)
 
                 # # if opponent rank is CURRENTLY stronger than RAN OUT board rank, then threshold is satisfied
                 if opponent_rank <= board_rank:  # include chops, if not then only do <
@@ -408,7 +410,7 @@ for i in range(PokerHands.HIGH_CARD, PokerHands.ROYAL_FLUSH - 1, -1):
 
         # can you add this to something outputed after the loop
         print(
-            f"equity for i ({PokerHands.to_str(i)}):",
+            f"equity for ({PokerHands.to_str(i)}):",
             res,
             " | took",
             time.time() - start,

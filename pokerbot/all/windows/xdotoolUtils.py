@@ -164,7 +164,7 @@ if __name__ == "__main__":
     import time
 
     # for i in range(1):
-    ids = get_all_windows_matching(".+NL.+")
+    ids = get_all_windows_matching(".+No Limit Hold'em.+")
     for id in ids:
 
         resize_window_id(id, 1080, 720)

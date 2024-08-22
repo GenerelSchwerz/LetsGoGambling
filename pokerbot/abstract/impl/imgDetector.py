@@ -329,7 +329,7 @@ class PokerImgDetect:
 
         if invert:
             # white pixels matter more than colored, so decrease brightness of saturated pixels
-            image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2HSV)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             hsv_image = np.float32(image)
 
             # scale the V value adjustments based on S value
@@ -406,6 +406,7 @@ class PokerImgDetect:
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
         # cv2.imshow("img", binary)
+        # cv2.imshow("img2", gray)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 

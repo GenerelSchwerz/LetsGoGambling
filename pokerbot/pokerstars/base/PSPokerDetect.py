@@ -68,7 +68,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             )
         )
 
-        self.POT_BYTES = None
+        self.TOTAL_POT_BYTES = None
         self.MAIN_POT_BYTES = None
         self.SIDE_POT_BYTES = None
 
@@ -97,7 +97,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
     def load_images(self):
         super().load_images()
 
-        self.POT_BYTES = self.load_image("pot.png")
+        self.TOTAL_POT_BYTES = self.load_image("pot.png")
         self.MAIN_POT_BYTES = self.load_image("mainpot.png")
         self.SIDE_POT_BYTES = self.load_image("sidepot.png")
 
@@ -133,25 +133,16 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         self.wm = PSPokerWindowDetect(window_manager)
 
     def ident_near_popup(
-        self, img, info_to_right: bool, loc: tuple[int, int, int, int]
+        self, img, info_to_right: bool, loc: tuple[int, int, int, int], extend=5
     ):
         w, h = loc[2] - loc[0], loc[3] - loc[1]
 
         subsection = (
-            loc[0] + (w if info_to_right else -w * 20),
+            loc[0] + (w if info_to_right else -w * extend),
             loc[1],
-            loc[2] + (w * 20 if info_to_right else -w),
+            loc[2] + (w * extend if info_to_right else -w),
             loc[3],
         )
-
-        print(w, h)
-        cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
-        cv2.imshow(
-            f"img | info to right: {info_to_right}",
-            img[subsection[1] : subsection[3], subsection[0] : subsection[2]],
-        )
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
 
         text = self.ocr_text_from_image(
             img, subsection, invert=True, brightness=0.5, contrast=3, erode=True
@@ -174,7 +165,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         return (screenshot.shape[1] // 2, h - h // 4, screenshot.shape[1], h)
 
     def call_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -184,7 +175,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def check_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -194,7 +185,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def bet_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -204,7 +195,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def plus_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -214,7 +205,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def fold_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -224,7 +215,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def raise_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -234,7 +225,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         )
 
     def allin_button(
-        self, screenshot: cv2.typing.MatLike, threshold=0.8
+        self, screenshot: cv2.typing.MatLike, threshold=0.85
     ) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(
             screenshot,
@@ -331,59 +322,144 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
 
         def ident_near_pot(img, loc: tuple[int, int, int, int]):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+            subsection = (
+                loc[0] - w * 4,
+                loc[1] + h,
+                loc[2] + w * 4,
+                loc[3] + h,
+            )
+
+            text = self.ocr_text_from_image(
+                img,
+                subsection,
+                invert=True,
+                contrast=3,
+                brightness=0.5,
+                erode=True,
+                similarity_factor=False,
+            )
+
+            return pretty_str_to_float(text)
+
+        # pot is on left side, meaning popup is to the left of the loc.
+        def ident_left_pot(img, loc: tuple[int, int, int, int]):
+            w, h = loc[2] - loc[0], loc[3] - loc[1]
+            subsection = (
+                loc[0] - w * 5,
+                loc[1] - 5,
+                loc[2] - w,
+                loc[3] + 5,
+            )
+
+            # find left popup
+            locs = self.template_detect(
+                img, self.POPUP_LEFT_BYTES, threshold=0.8, subsection=subsection
+            )
+
+            # pick rightmost left popup, if multiple
+
+            if len(locs) == 0:
+                raise RuntimeError("No left popup found")
+
+            left_ret = max(locs, key=lambda x: x[2])
+
+            subsection1 = (
+                left_ret[0],
+                left_ret[1],
+                loc[2] - w,
+                left_ret[3],
+            )
+
+            text = self.ocr_text_from_image(
+                img,
+                subsection1,
+                invert=True,
+                contrast=3,
+                brightness=0.5,
+                erode=True,
+                similarity_factor=False,
+            )
+
+            return pretty_str_to_float(text)
+
+        def ident_right_pot(img, loc: tuple[int, int, int, int]):
+            w, h = loc[2] - loc[0], loc[3] - loc[1]
             subsection = (
                 loc[0] + w,
-                loc[1] - h // 6,
-                loc[2] + w * 4,
-                loc[3] + h // 6,
+                loc[1] - 5,
+                loc[2] + w * 5,
+                loc[3] + 5,
             )
-            text = self.ocr_text_from_image(img, subsection, invert=True)
+
+            # find right popup
+
+            locs = self.template_detect(
+                img, self.POPUP_RIGHT_BYTES, threshold=0.8, subsection=subsection
+            )
+
+            # pick leftmost right popup, if multiple
+
+            if len(locs) == 0:
+                raise RuntimeError("No right popup found")
+
+            right_ret = min(locs, key=lambda x: x[0])
+
+            subsection1 = (
+                loc[0] + w,
+                right_ret[1],
+                right_ret[2],
+                right_ret[3],
+            )
+
+            text = self.ocr_text_from_image(
+                img, subsection1, invert=True, contrast=3, brightness=0.5, erode=True
+            )
 
             return pretty_str_to_float(text)
 
         h = img.shape[0]
         w = img.shape[1]
-        subsection = (w // 3, h // 4, w // 3 * 2, h // 4 * 3)
-        #      fullimg = fullimg[subsection[1]:subsection[3], subsection[0]:subsection[2]]
+        subsection = (w // 3, h // 4, w // 3 * 2, h // 4 * 2)
 
-        # cv2.imshow(
-        #     "img", img[subsection[1] : subsection[3], subsection[0] : subsection[2]]
-        # )
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        single_pot = self.ident_one_template(
-            img, self.POT_BYTES, subsection=subsection, threshold=0.5
+        locs = self.template_detect(
+            img, self.POPUP_CENTER_BYTES, threshold=0.8, subsection=subsection
         )
 
-        if single_pot is None:
+        if len(locs) == 0:
+            return 0
 
-            main_pot = self.ident_one_template(
-                img, self.MAIN_POT_BYTES, subsection=subsection
-            )
+        if len(locs) == 1:
+            # information is underneath the pot
+            return ident_near_pot(img, locs[0])
 
-            # no pots currently visible
-            if main_pot is None:
-                return 0
+        center_of_locs_x = sum(
+            [loc[0] + (loc[2] - loc[0]) // 2 for loc in locs]
+        ) // len(locs)
 
-            side_pots = self.template_detect(
-                img, self.SIDE_POT_BYTES, subsection=subsection
-            )
-            if len(side_pots) == 0:
-                return ident_near_pot(img, main_pot)
+        sum_it = 0
+        # detect bet popups
+        for loc in locs:
+            # w, h = loc[2] - loc[0], loc[3] - loc[1]
 
-            sum = 0
-            for pot in side_pots:
-                sum += ident_near_pot(img, pot)
+            loc_c_x = loc[0] + (loc[2] - loc[0]) // 2
+            # if popup is to the left of the pot
 
-            return sum + ident_near_pot(img, main_pot)
+            if loc_c_x < center_of_locs_x:
+                sum_it += ident_left_pot(img, loc)
+            else:
+                sum_it += ident_right_pot(img, loc)
 
-        else:
-            return ident_near_pot(img, single_pot)
+        return sum_it
 
     def total_pot(self, img: MatLike) -> int:
-        return self.middle_pot(img) + sum(self.current_bets(img))
+        pot_area = self.ident_one_template(img, self.TOTAL_POT_BYTES, threshold=0.8)
+        if pot_area is None:
+            return 0
 
-    def find_popup_info(
+        return self.ident_near_popup(img, True, pot_area)
+
+    def find_bet_infos(
         self, img: MatLike
     ) -> list[tuple[int, tuple[int, int, int, int]]]:
         ret = []
@@ -409,8 +485,23 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
             except ValueError:
                 return 0
 
+        h = img.shape[0]
+        w = img.shape[1]
+        pot_ss = (w // 3, h // 3, w // 3 * 2, h // 2)
+
+
         for loc in self.template_detect(img, self.POPUP_CENTER_BYTES, threshold=0.8):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
+
+            # make sure loc isn't in pot_ss
+            if (
+                pot_ss[0] < loc[0] < pot_ss[2]
+                and pot_ss[1] < loc[1] < pot_ss[3]
+                or pot_ss[0] < loc[2] < pot_ss[2]
+                and pot_ss[1] < loc[3] < pot_ss[3]
+            ):
+                continue
+
             subsection = (loc[0] - w * 5, loc[1] - 5, loc[2] + w * 5, loc[3] + 5)
 
             check_area = img[
@@ -444,7 +535,12 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 # cv2.imshow("img", img2)
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
-                ret.append((work(subsection1), subsection1))
+                try:
+                    ret.append((work(subsection1), subsection1))
+                except Exception as e:
+                    print(e)
+                    print(subsection1)
+                    continue
 
             else:
                 right_ret = self.template_detect(
@@ -473,7 +569,12 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                     # cv2.imshow("img", img2)
                     # cv2.waitKey(0)
                     # cv2.destroyAllWindows()
-                    ret.append((work(subsection1), subsection1))
+                    try:
+                        ret.append((work(subsection1), subsection1))
+                    except Exception as e:
+                        print(e)
+                        print(subsection1)
+                        continue
 
                 else:
                     print("fuck?")
@@ -482,7 +583,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         return ret
 
     def current_bets(self, img: MatLike) -> list[int]:
-        return list(map(lambda x: x[0], self.find_popup_info(img)))
+        return list(map(lambda x: x[0], self.find_bet_infos(img)))
 
     def current_bet(self, img: MatLike) -> int:
         # TODO: obsolesce this method by tracking player bet and max of current_bets()
@@ -531,6 +632,18 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
         for idx, type in enumerate(self.PLAYER_BYTES):
             for loc in self.template_detect(img, type, threshold=0.9):
                 w, h = loc[2] - loc[0], loc[3] - loc[1]
+                mid_x, mid_y = loc[0] + w // 2, loc[1] + h // 2
+
+                # make sure we're not repeating sections
+                # do so by making sure center point is not in any known section
+                if any(
+                    [
+                        section[0] < mid_x < section[2]
+                        and section[1] < mid_y < section[3]
+                        for section in sections
+                    ]
+                ):
+                    continue
 
                 # player info is to the right
                 sections.append(
@@ -541,8 +654,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                         loc[3] + 5,
                     )
                 )
-        
-     
+
         for section in sections:
             w, h = section[2] - section[0], section[3] - section[1]
 
@@ -550,7 +662,6 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                 img2[section[1] : section[3], section[0] : section[2]]
             ) // (3 * w * h)
 
-         
             active = tot_bright > 30
 
             # name in top half of section
@@ -637,7 +748,7 @@ class PSPokerImgDetect(PokerImgDetect, PokerDetection):
                     # shift text area down 1/2th of the height of the image and over 1/2th of the width of the image
                     text_area = (
                         loc[0] + w // 2 - w // 4,
-                        loc[1] + h,
+                        loc[1] + h // 12 * 9,
                         loc[2] + 3 * w // 2 + w // 4,
                         loc[3] + 4 * h // 2 + h // 8 * 4,
                     )
@@ -886,18 +997,18 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
         print("no allin button found")
 
     mid_pot = detector.middle_pot(img)
+    tot_pot = detector.total_pot(img)
 
-    print("midpot", mid_pot)
- 
-    test = detector.find_popup_info(img)
+    test = detector.find_bet_infos(img)
     current_bets = list(map(lambda x: x[0], test))
-    
 
-
-    tot_pot = mid_pot + sum(current_bets)
+    tot_pot1 = mid_pot + sum(current_bets)
+    print("midpot", mid_pot)
+    print("totpot", tot_pot)
+    print("bets", current_bets)
+    print("totpot1", tot_pot1)
     current_bet = max(current_bets) if len(current_bets) > 0 else 0
 
-   
     table_players = detector.table_players(img)
 
     stack_size = detector.stack_size(img)
@@ -907,8 +1018,6 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
     player_to_bets = associate_bet_locs(table_players, test)
     print("player_tests=", table_players)
     print("bets=", player_to_bets)
-
-
 
     for player, loc in table_players:
         color = (0, 255, 0) if player.active else (0, 0, 255)
@@ -935,7 +1044,7 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
         if loc in player_to_bets:
             bet, bet_loc = player_to_bets[loc]
-            
+
             cv2.putText(
                 img2,
                 player.name,
@@ -955,7 +1064,9 @@ def report_info(detector: PSPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
                 2,
             )
 
-            cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), color, 2)
+            cv2.rectangle(
+                img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), color, 2
+            )
 
     filename = ss if isinstance(ss, str) else "current image"
 
@@ -980,11 +1091,12 @@ if __name__ == "__main__":
     #     # "heck.png"
     #     "/home/generel/Documents/code/python/poker/LetsGoGambling/triplejack/new/base/tests/midrun/test-1720622523.png"
     # ]
+
     files = sorted(files)
     files.reverse()
     print(folder, files)
     for filename in files:
-        if filename.endswith(".png"):
+        if filename.endswith(".png") and "fail" in filename:
             path = os.path.join(folder, filename)
             print("running report_info on", path)
 

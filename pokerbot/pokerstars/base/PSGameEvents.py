@@ -41,7 +41,7 @@ class PSEventEmitter(PokerEventHandler):
 
         players = self.detector.table_players(img)
 
-        bets = self.detector.find_popup_info(img)
+        bets = self.detector.find_bet_infos(img)
 
 
         val = associate_bet_locs(players, bets)
@@ -55,7 +55,12 @@ class PSEventEmitter(PokerEventHandler):
         print(players)
         print(bets, '\n')
         print(val)
-        ordered = order_players_by_sb(players, val, sb_amount=small_blind)
+        try:
+            ordered = order_players_by_sb(players, val, sb_amount=small_blind)
+        except StopIteration:
+            print("Failed to order players by small blind.")
+            cv2.imwrite("failed_ordering.png", img)
+            return
 
         self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind, ordered, pbets)
         self.last_hand = hand
@@ -77,7 +82,7 @@ class PSEventEmitter(PokerEventHandler):
 
         to_print = list(map(lambda x: x[0], table_players))
         to_print_active = list(map(lambda x: x[0], active_players))
-        print("[OUR TURN] table:", to_print, "active:", to_print_active, "facing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
+        print("[OUR TURN] table:", to_print, f"total: {len(to_print)}\nactive:", to_print_active, f"total: {len(to_print_active)}\nfacing:", facing_bet, "total:", total_pot, "mid:", mid_pot)
 
         self.emit(PokerEvents.OUR_TURN,
                     hole_cards,
@@ -111,9 +116,12 @@ class PSEventEmitter(PokerEventHandler):
             if (card_len := len(community_cards)) < 5 and card_len > 0:
                 current_stage = PokerStages.SHOWDOWN # currently displaying winning cards
             elif card_len == 0:
-                bets = self.detector.current_bets(image)
-                if len(bets) == 0:
-                    current_stage = PokerStages.SETUP
+                if self.last_stage == PokerStages.SETUP:
+                    bets = self.detector.current_bets(image)
+                    if len(bets) < 2:
+                        current_stage = PokerStages.SETUP
+                    else:
+                        current_stage = PokerStages.PREFLOP
                 else:
                     current_stage = PokerStages.PREFLOP
             else:
@@ -121,9 +129,12 @@ class PSEventEmitter(PokerEventHandler):
 
         else:
             if (card_len := len(community_cards)) == 0:
-                bets = self.detector.current_bets(image)
-                if len(bets) == 0:
-                    current_stage = PokerStages.SETUP
+                if self.last_stage == PokerStages.SETUP:
+                    bets = self.detector.current_bets(image)
+                    if len(bets) < 2:
+                        current_stage = PokerStages.SETUP
+                    else:
+                        current_stage = PokerStages.PREFLOP
                 else:
                     current_stage = PokerStages.PREFLOP
         
@@ -184,11 +195,11 @@ class PSEventEmitter(PokerEventHandler):
             return
 
 
-        check_button = self.detector.check_button(image, threshold=0.8)
+        check_button = self.detector.check_button(image, threshold=0.85) # weird.
         if check_button is not None:
             our_turn = True
         else:
-            fold_button = self.detector.fold_button(image, threshold=0.8)
+            fold_button = self.detector.fold_button(image, threshold=0.85)
             if fold_button is not None:
                 our_turn = True
                     

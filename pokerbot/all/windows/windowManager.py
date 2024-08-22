@@ -50,68 +50,73 @@ class AWindowManager(ABC):
         pass
 
 
-import pygetwindow
-from win32gui import *
-from win32process import *
-class WindowsWindowManager(AWindowManager):
+import os
+if os.name == "nt":
+    from win32gui import *
 
-    def is_valid(self) -> bool:
-        pass
+    import pygetwindow
+    from win32gui import *
+    from win32process import *
 
-    def assign_to_window(self, window_id:int):
-        def callback(hwnd, hwnds):
-            _, found_pid = GetWindowThreadProcessId(hwnd)
+    class WindowsWindowManager(AWindowManager):
 
-            if found_pid == window_id:
-                hwnds.append(hwnd)
-                return True
-        hwnds = []
-        EnumWindows(callback, hwnds)
+        def is_valid(self) -> bool:
+            pass
 
-        for hwnd in hwnds:
-            if IsWindowVisible(hwnd):
-                self.window_title = GetWindowText(hwnd)
-        self.window_id = window_id
+        def assign_to_window(self, window_id:int):
+            def callback(hwnd, hwnds):
+                _, found_pid = GetWindowThreadProcessId(hwnd)
 
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
+                if found_pid == window_id:
+                    hwnds.append(hwnd)
+                    return True
+            hwnds = []
+            EnumWindows(callback, hwnds)
 
-    def assign_to_window_title(self, window_title: str):
-        window = FindWindow(None, window_title)
-        threadid, pid = GetWindowThreadProcessId(window)
-        self.window_title = window_title
-        self.window_id = pid
+            for hwnd in hwnds:
+                if IsWindowVisible(hwnd):
+                    self.window_title = GetWindowText(hwnd)
+            self.window_id = window_id
 
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
+            pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
+            pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
 
-    def get_window_dimensions(self) -> tuple[int, int, int, int]:
-        window_handle = FindWindow(None, self.window_title)
-        window_rect   = GetWindowRect(window_handle)
-        return window_rect
+        def assign_to_window_title(self, window_title: str):
+            window = FindWindow(None, window_title)
+            threadid, pid = GetWindowThreadProcessId(window)
+            self.window_title = window_title
+            self.window_id = pid
 
-    def update_window_title(self) -> str:
-        def callback(hwnd, hwnds):
-            _, found_pid = GetWindowThreadProcessId(hwnd)
+            pygetwindow.getWindowsWithTitle(self.window_title)[0].moveTo(0, 0)
+            pygetwindow.getWindowsWithTitle(self.window_title)[0].resizeTo(1080, 720)
 
-            if found_pid == self.window_id:
-                hwnds.append(hwnd)
-                return True
-        hwnds = []
-        EnumWindows(callback, hwnds)
-        for hwnd in hwnds:
-            if IsWindowVisible(hwnd):
-                self.window_title = GetWindowText(hwnd)
+        def get_window_dimensions(self) -> tuple[int, int, int, int]:
+            window_handle = FindWindow(None, self.window_title)
+            window_rect   = GetWindowRect(window_handle)
+            return window_rect
 
-        if self.window_title is None:
-            raise RuntimeError("Could not find window with id (most likely invalid): " + str(self.window_id))
-        return self.window_title
-    
-    def close(self):
-        pygetwindow.getWindowsWithTitle(self.window_title)[0].close()
+        def update_window_title(self) -> str:
+            def callback(hwnd, hwnds):
+                _, found_pid = GetWindowThreadProcessId(hwnd)
 
-    def ss(self) -> cv2.typing.MatLike:
-        pass
+                if found_pid == self.window_id:
+                    hwnds.append(hwnd)
+                    return True
+            hwnds = []
+            EnumWindows(callback, hwnds)
+            for hwnd in hwnds:
+                if IsWindowVisible(hwnd):
+                    self.window_title = GetWindowText(hwnd)
+
+            if self.window_title is None:
+                raise RuntimeError("Could not find window with id (most likely invalid): " + str(self.window_id))
+            return self.window_title
+        
+        def close(self):
+            pygetwindow.getWindowsWithTitle(self.window_title)[0].close()
+
+        def ss(self) -> cv2.typing.MatLike:
+            pass
 
 
 
@@ -185,3 +190,6 @@ class UnixWindowManager(AWindowManager):
 
         # move_window_id_to_background(self.window_id)
         return ss
+
+    def close(self):
+        kill_window_id(self.window_id)
