@@ -6,6 +6,74 @@ from treys import Card, Deck, Evaluator, PLOEvaluator
 from pokerbot.abstract.pokerDetection import Player
 from pokerbot.all.utils import PokerHands, is_hand_possible, is_in_percentile
 
+from itertools import combinations
+
+poker_ranks = "23456789TJQKA"
+poker_suits = "shdc"
+
+# Generate all possible two-card combinations (hole cards)
+all_hands = [
+    [Card.new(rank2 + suit2), Card.new(rank1 + suit1)]
+    for (rank1, suit1), (rank2, suit2) in combinations(
+            [(rank, suit) for rank in poker_ranks for suit in poker_suits], 2)
+]
+
+# print(list(map(lambda x: [Card.int_to_pretty_str(x[0]), Card.int_to_pretty_str(x[1])], all_hands)), len(all_hands))
+
+# I need a function that returns a generator of acceptable hole cards
+# given the community board and the minimum threshold.
+def valid_hole_cards(threshold: int, community_cards: list[Card] = [], satisfies_now=False):
+    
+    evalulator = Evaluator()
+    
+
+
+
+
+def assert_possiblities(community_cards: list[Card], threshold_classes: Union[int, Union[list[int]]]):
+    if isinstance(threshold_classes, tuple) or isinstance(threshold_classes, list):
+            if any(
+                    not is_hand_possible(community_cards, threshold)
+                    for threshold in threshold_classes
+                ):
+                    str_it = ", ".join(
+                        PokerHands.to_str(threshold) for threshold in threshold_classes
+                    )
+
+                    raise ValueError(
+                        f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold ({str_it}) given the board{Card.ints_to_pretty_str(community_cards)}"
+                    )
+    elif isinstance(threshold_classes, int):
+        if not is_hand_possible(community_cards, threshold_classes):
+
+            raise ValueError(
+                f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold {PokerHands.to_str(threshold_classes)} given the board{Card.ints_to_pretty_str(community_cards)}"
+            )
+    else:
+        raise ValueError("threshold_classes must be an int or a tuple of two ints")
+    
+
+def faster_calculate_equity(
+        hole_cards: list[Card],
+    community_cards: list[Card],
+    sim_time=4000,
+    runs=1500,
+    threshold_classes: Union[int, list[int]] = PokerHands.HIGH_CARD,
+    threshold_players=1,
+    opponents=1,
+    opps_satisfy_thresh_now=False,   
+) -> float:
+    wins = 0
+    known_cards = hole_cards + community_cards
+
+    if opps_satisfy_thresh_now:
+        assert_possiblities(community_cards, threshold_classes)
+
+    # set up full deck beforehand to save cycles.
+    SEMI_FULL_DECK = Deck.GetFullDeck().copy()
+
+    for card in known_cards:
+        SEMI_FULL_DECK.remove(card)
 
 # TODO make everything numpy? Could probably see more performance that way.
 # @numba.jit()
@@ -23,26 +91,8 @@ def fast_calculate_equity(
     known_cards = hole_cards + community_cards
 
     if opps_satisfy_thresh_now:
-        if isinstance(threshold_classes, tuple) or isinstance(threshold_classes, list):
-            if any(
-                not is_hand_possible(community_cards, threshold)
-                for threshold in threshold_classes
-            ):
-                str_it = ", ".join(
-                    PokerHands.to_str(threshold) for threshold in threshold_classes
-                )
-
-                raise ValueError(
-                    f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold ({str_it}) given the board{Card.ints_to_pretty_str(community_cards)}"
-                )
-        elif isinstance(threshold_classes, int):
-            if not is_hand_possible(community_cards, threshold_classes):
-
-                raise ValueError(
-                    f"opps_satisfy_thresh_now is True but no opponents can satisfy threshold {PokerHands.to_str(threshold_classes)} given the board{Card.ints_to_pretty_str(community_cards)}"
-                )
-        else:
-            raise ValueError("threshold_classes must be an int or a tuple of two ints")
+        assert_possiblities(community_cards, threshold_classes)
+        
 
     # set up full deck beforehand to save cycles.
     SEMI_FULL_DECK = Deck.GetFullDeck().copy()
