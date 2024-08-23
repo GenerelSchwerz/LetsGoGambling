@@ -1,19 +1,16 @@
 import cv2
 
 from treys import Card
-from pprint import pprint
+from pprint import pprint, pformat
 
 from .utils import associate_bet_locs, order_players_by_sb
 from ..abstract.pokerDetection import PokerDetection
 from ..abstract.pokerEventHandler import PokerStages, PokerEvents, PokerEventHandler
 
 import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s|%(name)s]: %(message)s",
-    datefmt="%m-%d %H:%M:%S",
-)
-log = logging.getLogger("GameEventEmitter")
+
+
+log = logging.getLogger(__name__)
 
 
 class ImgPokerEventEmitter(PokerEventHandler):
@@ -44,12 +41,15 @@ class ImgPokerEventEmitter(PokerEventHandler):
                 if ploc == pploc:
                     pbets[p] = bet[0]
                     break
+        
+        log.debug(pformat(players))
+        log.debug(pformat(bets))
+        log.debug(pformat(associated_bets))
 
-        pprint(players)
-        pprint(bets)
-        pprint(associated_bets)
         try:
-            ordered = order_players_by_sb(players, associated_bets, sb_amount=small_blind)
+            ordered = order_players_by_sb(
+                players, associated_bets, sb_amount=small_blind
+            )
         except StopIteration:
             log.error("Failed to order players by small blind.")
             cv2.imwrite("failed_ordering.png", img)
@@ -80,17 +80,13 @@ class ImgPokerEventEmitter(PokerEventHandler):
 
         to_print = list(map(lambda x: x[0], table_players))
         to_print_active = list(map(lambda x: x[0], active_players))
+
+
+        min_bet = self.detector.min_bet(img)
         log.info(
-            "[OUR TURN] table:",
-            to_print,
-            f"total: {len(to_print)}\nactive:",
-            to_print_active,
-            f"total: {len(to_print_active)}\nfacing:",
-            facing_bet,
-            "total:",
-            total_pot,
-            "mid:",
-            mid_pot,
+            f"[OUR TURN] table: {to_print} | total: {len(to_print)}\n \
+            active: {to_print_active} | total: {len(to_print_active)}\n \
+            facing bet: {facing_bet} | min bet: {min_bet} | total: {total_pot} | mid: {mid_pot}"
         )
 
         self.emit(
@@ -99,7 +95,7 @@ class ImgPokerEventEmitter(PokerEventHandler):
             community_cards,
             stage,
             facing_bet,
-            self.detector.min_bet(img),
+            min_bet,
             mid_pot,
             total_pot,
             self.detector.stack_size(img),

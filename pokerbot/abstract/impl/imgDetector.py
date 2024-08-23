@@ -319,7 +319,7 @@ class PokerImgDetect():
                             contrast=0.0,
                             card_chars=True,
                             similarity_factor=True,
-                            scale=40):
+                            scale=40, debug=False):
 
         image = screenshot[location[1]:location[3], location[0]:location[2]]
 
@@ -406,10 +406,11 @@ class PokerImgDetect():
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
-        # cv2.imshow("img", binary)
-        # cv2.imshow("img2", gray)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        if debug:
+            cv2.imshow("img", binary)
+            cv2.imshow("img2", gray)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
         if card_chars:
             config = CUSTOM_CONFIG.format(psm=psm)

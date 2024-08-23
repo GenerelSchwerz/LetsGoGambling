@@ -81,12 +81,12 @@ def start_table(window_id: int):
         run_ticks(client, 2)
     except KeyboardInterrupt:
         print("bot finished")
-        client.stop()
+        # client.stop()
     except Exception as e:
         import traceback
 
         traceback.print_exc()
-        client.stop()
+        # client.stop()
 
 
 class CPokerInit(MultiTableSetup):
@@ -143,7 +143,7 @@ class CPokerInit(MultiTableSetup):
 def main():
     import os
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="[%(asctime)s|%(name)s]: %(message)s",
         datefmt="%m-%d %H:%M:%S",
     )
@@ -175,7 +175,7 @@ def main():
 
         clients = full_client.start_tables(1)
         full_client.wait_for_all(clients)
-        full_client.shutdown()
+        # full_client.shutdown()
     except KeyboardInterrupt:
         print("bot finished")
     

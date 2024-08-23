@@ -127,7 +127,7 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
             high_offset,
         )
 
-        log.debug(section, h1, high_offset - low_offset)
+        log.debug(f"{section}, {h1}, {high_offset}, {low_offset}")
 
         # cv2.imshow("raw", img[loc[1] : loc[3], loc[0] : loc[2]])
         # cv2.imshow(
@@ -484,34 +484,63 @@ class CPokerImgDetect(PokerImgDetect, PokerDetection):
         return max(self.current_bets(img))
 
     def min_bet(self, img: MatLike) -> int:
+        # TODO: handle larger numbers.
         # when you call this, check if current_bet >= stack_size, if it is, save time by not calling this method
         bet_button = self.bet_button(img)
+
         if bet_button is not None:
-            w, h = bet_button[2] - bet_button[0], bet_button[3] - bet_button[1]
             loc = (
-                bet_button[0] - 10,
+                bet_button[0] - 50,
                 bet_button[3],
-                bet_button[2] + 10,
+                bet_button[2] + 50,
                 bet_button[3] + (bet_button[3] - bet_button[1]) * 2,
             )
 
-            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
+            text= self.ocr_text_from_image(img, loc, contrast=1.5, invert=True)
+            ret = pretty_str_to_float(text)
+            if "." not in text:
+                ret /= 100
+            # cv2.imshow(f"img {ret}", img[loc[1] : loc[3], loc[0] : loc[2]])
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+
+            return ret
+       
         elif (raise_button := self.raise_button(img)) is not None:
+
             loc = (
-                raise_button[0] - 10,
+                raise_button[0] - 50,
                 raise_button[3],
-                raise_button[2] + 10,
+                raise_button[2] + 50,
                 raise_button[3] + (raise_button[3] - raise_button[1]) * 2,
             )
-            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
+
+            text= self.ocr_text_from_image(img, loc, contrast=1.5, invert=True)
+            ret = pretty_str_to_float(text)
+            if "." not in text:
+                ret /= 100
+            # cv2.imshow(f"img {ret}", img[loc[1] : loc[3], loc[0] : loc[2]])
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+
+            return ret
         elif (call_button := self.call_button(img)) is not None:
             loc = (
-                call_button[0] - 10,
-                call_button[3],
-                call_button[2] + 10,
-                call_button[3] + (call_button[3] - call_button[1]) * 2,
+                call_button[2],
+                call_button[1] - 5,
+                call_button[2] + 60,
+                call_button[3] + 5,
             )
-            return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
+            text= self.ocr_text_from_image(img, loc, contrast=1.5, invert=True)
+            ret = pretty_str_to_float(text)
+            if "." not in text:
+                ret /= 100
+
+            # cv2.imshow(f"img {ret}", img[loc[1] : loc[3], loc[0] : loc[2]])
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+
+            return ret
         else:
             raise RuntimeError("Not my turn or couldn't find current bet")
 
@@ -980,9 +1009,17 @@ def report_info(detector: CPokerImgDetect, ss: Union[str, cv2.typing.MatLike]):
 
             cv2.rectangle(img2, (bet_loc[0], bet_loc[1]), (bet_loc[2], bet_loc[3]), color, 2)
 
+    try:
+        min_bet = detector.min_bet(img)
+        print("min bet", min_bet)
+    except Exception as e:
+        print("error", e)
+    except:
+        print("error")
+
 
     stack_size = detector.stack_size(img)
-    print(stack_size)
+    print("stack size", stack_size)
     
     filename = ss if isinstance(ss, str) else "current image"
 
@@ -1013,7 +1050,7 @@ if __name__ == "__main__":
     files.reverse()
     print(folder, files)
     for filename in files:
-        if filename.endswith(".png"):
+        if filename.endswith(".png") and "cards1" in filename:
             path = os.path.join(folder, filename)
             print("running report_info on", path)
 

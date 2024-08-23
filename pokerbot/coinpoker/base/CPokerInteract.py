@@ -69,7 +69,7 @@ class CPokerInteract(PokerInteract):
     ):
         dims = self.wm.get_window_dimensions()
 
-        log.debug("org x, y wanted for clicks:", x + dims[0], y + dims[2])
+        log.debug(f"org x, y wanted for clicks: {x + dims[0]}, {y + dims[2]}")
 
         # randomly offset x and y within bb if present, bias towards current x and y
         if bb is not None:
@@ -115,10 +115,12 @@ class CPokerInteract(PokerInteract):
         while min_bet + (clicks * bb) < amt:
             clicks += 1
 
-        log.debug("Clicking", clicks, "times", min_bet + (clicks * bb), "of", amt)
+        # format string
+        log.debug(f"Clicking {clicks} times {min_bet + (clicks * bb)} of {amt}")
+
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
-            log.debug("Adjusted clicks to", clicks)
+            log.debug(f"Adjusted clicks to {clicks}")
 
         press_plus = self.detector.plus_button(ss, threshold=0.8)
         if press_plus is None:
