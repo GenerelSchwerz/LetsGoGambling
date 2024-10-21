@@ -34,7 +34,6 @@ from pokerbot.pokerstars.base.PSPokerDetect import PSPokerImgDetect
 
 
 from ..abstract.pokerInit import MultiTableSetup
-from ..all.windows import get_all_windows_matching, UnixWindowManager
 
 
 from selenium.webdriver.common.by import By
@@ -49,7 +48,6 @@ from selenium.webdriver.remote.webelement import WebElement
 from logging import Logger
 
 log = Logger("PokerBot")
-
 
 class TJInit:
 
@@ -327,8 +325,8 @@ def main():
 
     os.makedirs("./midrun", exist_ok=True)
 
-    for file in os.listdir("./midrun"):
-        os.remove(f"./midrun/{file}")
+    # for file in os.listdir("./midrun"):
+    #     os.remove(f"./midrun/{file}")
 
     try:
         with open("pokerbot/config.json") as config_file:
@@ -340,17 +338,26 @@ def main():
         print("Config file not found")
         return
 
-    with ProcessPoolExecutor() as executor:
-        for idx in range(accAmt):
-            info = accs[idx]
-            username = info["username"]
-            password = info["password"]
-            time_split = tj_cfg["secondsPerTick"]
-            headless = tj_cfg["headless"]
-            firefox = tj_cfg["firefox"]
-            executor.submit(
-                launch_user, username, password, time_split, headless, firefox
-            )
+    if accAmt > 1:
+        with ProcessPoolExecutor() as executor:
+            for idx in range(accAmt):
+                info = accs[idx]
+                username = info["username"]
+                password = info["password"]
+                time_split = tj_cfg["secondsPerTick"]
+                headless = tj_cfg["headless"]
+                firefox = tj_cfg["firefox"]
+                executor.submit(
+                    launch_user, username, password, time_split, headless, firefox
+                )
+    else:
+        username = accs[0]["username"]
+        password = accs[0]["password"]
+        time_split = tj_cfg["secondsPerTick"]
+        headless = tj_cfg["headless"]
+        firefox = tj_cfg["firefox"]
+        launch_user(username, password, time_split, headless, firefox)
+
 
     # print all errors
 

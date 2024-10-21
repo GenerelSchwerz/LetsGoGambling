@@ -303,8 +303,53 @@ class PokerImgDetect:
 
                             done = False
 
+        # check if whole image is white
+        if np.all(output_image == 255):
+            # print('Erased edges flood fill failed, whole image is white')
+            return image
+        else:
+            return output_image
+
         return output_image
 
+    # helper method for ocr specifically just to detect 10's. because im fuckign tired
+    def check_edge_transitions(self, image, fifth=2):
+        height, width = image.shape
+        row_to_check = height // 5 * fifth
+        transition_count = 0
+
+        for col in range(1, width):
+            # check for a white-black transition or a black-white transition
+            if image[row_to_check, col] != image[row_to_check, col - 1]:
+                transition_count += 1
+
+        # print(transition_count)
+        return transition_count
+
+    def find_black_pixel_height(self, image, tolerance=20):
+        # Ensure the input is a 2D grayscale matrix
+        if len(image.shape) != 2:
+            raise ValueError("The input should be a two-dimensional grayscale image.")
+
+        # Define a threshold to determine "black" based on the tolerance
+        threshold = tolerance
+
+        # Find the indices of rows containing pixels darker than the threshold
+        # This means those pixels are considered "black" based on the tolerance
+        black_pixel_rows = np.where(np.any(image <= threshold, axis=1))[0]
+
+        # Check if there are any rows with such "black" pixels
+        if len(black_pixel_rows) == 0:
+            return 0  # Return 0 if no black pixel is found
+
+        # Get the first and last row indices with tolerant black pixels
+        first_black_row = black_pixel_rows[0]
+        last_black_row = black_pixel_rows[-1]
+
+        # Calculate the vertical height between the first and last black rows
+        height_between = last_black_row - first_black_row
+
+        return height_between
 
 
     def ocr_text_from_image(self, screenshot: np.ndarray,
@@ -354,6 +399,11 @@ class PokerImgDetect:
             hsv_image[:, :, 2] = hsv_image[:, :, 2] * (1 + (1.5 * (hsv_image[:, :, 1] / 255)))
             hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
 
+            # set the S value to 0
+            hsv_image[:, :, 1] = 0
+
+            hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] > 45, 255, hsv_image[:, :, 2])
+
             hsv_image = np.uint8(hsv_image)
             image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
 
@@ -382,7 +432,11 @@ class PokerImgDetect:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # scale height to 33 pixels using bicubic resampling
-        gray = cv2.resize(gray, (0, 0), fx=scale / gray.shape[0], fy=scale / gray.shape[0], interpolation=cv2.INTER_CUBIC)
+        # invert the image
+        scale_from = self.find_black_pixel_height(gray if not invert else cv2.bitwise_not(gray))
+        # print(scale_from)
+        if scale_from != 0:
+            gray = cv2.resize(gray, (0, 0), fx=scale / scale_from, fy=scale / scale_from, interpolation=cv2.INTER_CUBIC)
 
         # i know this effect better as feathering but everyone calls it erosion
         if erode:
@@ -398,6 +452,10 @@ class PokerImgDetect:
 
       
 
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         if invert:
             binary = cv2.bitwise_not(binary)
 
@@ -405,19 +463,27 @@ class PokerImgDetect:
         binary = self.eliminate_isolated_pixels(binary)
         binary = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
-        # cv2.imshow("img", binary)
-        # cv2.imshow("img2", gray)
+        # cv2.imshow("img2", binary)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        if card_chars:
-            config = CUSTOM_CONFIG.format(psm=psm)
+        if black_text and self.check_edge_transitions(binary) == 6:
+            # print("looks like a ten")
+            result = '10'
         else:
-            config = '--oem 3 --psm {psm}'.format(psm=psm)
-        result: str = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
+            if card_chars:
+                config = CUSTOM_CONFIG.format(psm=psm)
+            else:
+                config = '--oem 3 --psm {psm}'.format(psm=psm)
+            result: str = pytesseract.image_to_string(binary, lang='eng', config=config).strip()
+
+        # print("result: \"" + result + "\"")
 
         # can you tell what number has given me hours of trouble with tesseract and TJ font
-        if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", ]):
+        # EDIT: numberS*
+        if any(result == char for char in ['0', 'O', '1', 'I', "170", "I70", "17O", "I7O", "70", "1O", "IO", "I0", "7O", '']):
+            if self.check_edge_transitions(binary) == 2 and self.check_edge_transitions(binary, 3) == 4 and any(result == char for char in ['0', 'O', '']):
+                return '6'
             return '10'
         return result
 

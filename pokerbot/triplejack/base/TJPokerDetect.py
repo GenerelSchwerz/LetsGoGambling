@@ -1,6 +1,7 @@
 # lazy code for now
 import json
 import math
+import re
 from typing import Union, List, Tuple
 
 import pytesseract
@@ -125,6 +126,9 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         self.name_loc = None
         self.username = username
 
+        self.saved_small_blind = None
+        self.saved_big_blind = None
+
     def load_images(self):
         super().load_images()
 
@@ -195,25 +199,25 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         h = screenshot.shape[0]
         return (0, h - h // 5, screenshot.shape[1], h)
 
-    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def call_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CALL_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def check_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.CHECK_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def bet_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.BET_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def plus_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def plus_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.PLUS_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def fold_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.FOLD_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def raise_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.RAISE_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
     
-    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.8) -> Union[tuple[int, int, int, int], None]:
+    def allin_button(self, screenshot: cv2.typing.MatLike, threshold=0.7) -> Union[tuple[int, int, int, int], None]:
         return self.ident_one_template(screenshot, self.ALLIN_BUTTON_BYTES, threshold, self.__get_button_subsection(screenshot))
 
     def popup(self, screenshot: cv2.typing.MatLike, popup_type: int) -> Union[tuple[int, int, int, int], None]:
@@ -264,6 +268,12 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             right = left + data["width"][index]
             bottom = top + data["height"][index]
             self.name_loc = (left, top, right, bottom)
+
+            # show name loc on img
+            # cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 2)
+            # cv2.imshow("img", img)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
         else:
             raise RuntimeError("Couldn't find username")
 
@@ -276,15 +286,21 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         center_x = (self.name_loc[0] + self.name_loc[2]) // 2
         height = self.name_loc[3] - self.name_loc[1]
         left = center_x + 20
-        top = self.name_loc[1] - (height * 2)
+        top = self.name_loc[1] - int(height * 2)
         right = center_x + 140
         bottom = self.name_loc[1]
+        # print(self.name_loc)
 
-        number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=True)
+        # show cropped image
+        # cv2.imshow("img", img[top:bottom, left:right])
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        number = self.ocr_text_from_image(img, (left, top, right, bottom), invert=True, brightness=0.5, contrast=3, erode=False)
         return pretty_str_to_float(number)
 
     def middle_pot(self, img: MatLike) -> int:
-
+        print("Getting middle pot...")
         def ident_near_pot(img, loc: tuple[int, int, int, int]):
             w, h = loc[2] - loc[0], loc[3] - loc[1]
             subsection = (
@@ -330,11 +346,60 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
 
     def current_bets(self, img: MatLike) -> list[int]:
         ret = []
+        print("Getting current bets...")
 
-        for popup in self.POPUP_BYTES:
-            for loc in self.template_detect(img, popup, threshold=0.9):
-                ret.append(self.ident_near_popup(img, loc))
-        
+        # for popup in self.POPUP_BYTES:
+        #     for loc in self.template_detect(img, popup, threshold=0.9):
+        #         ret.append(self.ident_near_popup(img, loc))
+        #
+        # return ret
+
+        subsection = (img.shape[1] // 5, (img.shape[0] * 2) // 7, img.shape[1] * 4 // 5, (6 * img.shape[0]) // 11)
+        cards_to_zero_out = (425, 305, 425 + 475, 305 + 130)
+        main_pot_to_zero_out = (615, 435, 615 + 100, 435 + 100)
+        img = img.copy()
+        img[cards_to_zero_out[1]:cards_to_zero_out[3], cards_to_zero_out[0]:cards_to_zero_out[2]] = 0
+        img[main_pot_to_zero_out[1]:main_pot_to_zero_out[3], main_pot_to_zero_out[0]:main_pot_to_zero_out[2]] = 0
+        img = img[subsection[1]:subsection[3], subsection[0]:subsection[2]]
+
+        image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsv_image = np.float32(image)
+
+        # if S value is above 10, set V to 0
+        hsv_image[:, :, 2] = np.where(hsv_image[:, :, 1] > 20, 0, hsv_image[:, :, 2])
+        hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
+
+        # if v value is below 200, set V to 0
+        # hsv_image[:, :, 2] = np.where(hsv_image[:, :, 2] < 175, 0, hsv_image[:, :, 2])
+        # hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2], 0, 255)
+
+        hsv_image = np.uint8(hsv_image)
+        image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        binary = cv2.bitwise_not(binary)
+
+        binary = self.erase_edges(binary)
+
+        # cv2.imshow("img", binary)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        data = pytesseract.image_to_data(binary, output_type=pytesseract.Output.DICT)
+
+        number_regex = re.compile(r"\d{1,3}(?:,\d{3})*(?:[kKmM])?")
+
+        for i in range(len(data["text"])):
+            text = data["text"][i]
+            if len(text) > 0 and number_regex.match(text):
+                # left = data["left"][i]
+                # top = data["top"][i]
+                # right = left + data["width"][i]
+                # bottom = top + data["height"][i]
+                ret.append(pretty_str_to_float(text))
+
         return ret
         
     def current_bet(self, img: MatLike) -> int:
@@ -353,7 +418,8 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                     loc = (allin_button[0] - 10, allin_button[3], allin_button[2] + 10, allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
                     return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
                 else:
-                    raise RuntimeError("Not my turn or couldn't find current bet")
+                    print("ERROR: Not my turn or couldn't find current bet")
+                    return 999999
 
 
     def min_bet(self, img: MatLike) -> int:
@@ -375,7 +441,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
                            allin_button[3] + (allin_button[3] - allin_button[1]) + 3)
                     return pretty_str_to_float(self.ocr_text_from_image(img, loc, contrast=3))
                 else:
-                    raise RuntimeError("Not my turn or couldn't find current bet")
+                    raise RuntimeError("ERROR: Not my turn or couldn't find current bet")
 
     def table_players(self, img: MatLike, active=False) -> List[Tuple[Tuple[int, int, int, int], str]]:
         # convert from BGR to RGB
@@ -529,21 +595,38 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             bottom = y1 + 15
             left = x1
             right = x2
-            name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, card_chars=False, scale=50)
+            if active:
+                name = "OMITTED FOR TIME"
+            else:
+                name = self.ocr_text_from_image(output_image, (left, top, right, bottom), invert=True, brightness=1, contrast=1.5, card_chars=False, scale=50)
             players.append(((left, top, right, bottom), name))
         return players
 
     def active_players(self, img: MatLike) -> list:
+        print("Getting active players...")
         return self.table_players(img, active=True)
 
     def big_blind(self, img: MatLike) -> int:
-        big_blind_popup = self.ident_one_template(img, self.BIG_POPUP_BYTES)
+        if self.saved_big_blind is None:
+            big_blind_popup = self.ident_one_template(img, self.BIG_POPUP_BYTES)
+            if big_blind_popup is None:
+                return -1
+            self.saved_big_blind = self.ident_near_popup(img, big_blind_popup)
+        else:
+            return self.saved_big_blind
         if big_blind_popup is None:
             return -1
         
         return self.ident_near_popup(img, big_blind_popup)
     
     def small_blind(self, img: MatLike) -> int:
+        if self.saved_small_blind is None:
+            small_blind_popup = self.ident_one_template(img, self.SMALL_POPUP_BYTES)
+            if small_blind_popup is None:
+                return -1
+            self.saved_small_blind = self.ident_near_popup(img, small_blind_popup)
+        else:
+            return self.saved_small_blind
         small_blind_popup = self.ident_one_template(img, self.SMALL_POPUP_BYTES)
         if small_blind_popup is None:
             return -1
@@ -556,61 +639,72 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
             suits = self.find_hole_suits(img, subsection=subsection)
         else:
             suits = self.find_community_suits(img, subsection=subsection)
-
         ret = []
 
-        for key, locs in suits.items():
-            for loc in locs:
-                w, h = loc[2] - loc[0], loc[3] - loc[1]
+        tuples_list = []
+        for key, array in suits.items():
+            for coords in array:
+                tuples_list.append(tuple(coords) + (key,))
 
-                if hole:
-                    text_area = (
-                        loc[0] - w // 6,
-                        loc[1] - h - h // 5,
-                        loc[2] + w // 6,
-                        loc[3] - h,
-                    )
-                else:
-                    text_area = (
-                        loc[0] - w // 6,
-                        loc[1] - h - h // 6,
-                        loc[2] + w // 6,
-                        loc[3] - h,
-                    )
+        sorted_tuples = sorted(tuples_list)
 
-              
-                text = self.ocr_text_from_image(img,
-                                                text_area,
-                                                psm=7,
-                                                contrast=1.5,
-                                                black_text=True,
-                                                rotation_angle=3 if hole else 0)
-      
-                loc = text_area
+        i = 0
+        angles = {1: -5, 2: -3, 3: 0, 4: 3, 5: 5}
 
-                full_card_str = f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"
+        for o in sorted_tuples:
+            key = o[4]
+            loc = o
+            w, h = loc[2] - loc[0], loc[3] - loc[1]
 
-                # img1 = cv2.rectangle(img.copy(), (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
-                # cv2.putText(img1, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if hole:
+                text_area = (
+                    loc[0] - w // 6,
+                    loc[1] - h - h // 5,
+                    loc[2] + w // 5,
+                    loc[3] - h,
+                )
+            else:
+                text_area = (
+                    loc[0] - w // 5,
+                    loc[1] - h - h // 7 if not key == "hearts" else loc[1] - h - h // 6,
+                    loc[2] + w // 6,
+                    loc[3] - h,
+                )
 
-                # cv2.imshow("img", img1)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
+            i += 1
 
-                if text == "":
-                    cv2.imwrite(f"error-{int(time.time())}.png", img)
-                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite(f"error-{int(time.time())}_2.png", img)
-                    raise ValueError("OCR failed to find card's text")
+            text = self.ocr_text_from_image(img,
+                                            text_area,
+                                            psm=7,
+                                            contrast=1.5,
+                                            black_text=True,
+                                            rotation_angle=2 if hole else angles[i])
 
-                try:
-                    ret.append((Card.new(full_card_str), loc))
-                except KeyError as e:
-                    cv2.imwrite(f"error-{int(time.time())}.png", img)
-                    cv2.putText(img, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
-                    cv2.imwrite(f"error-{int(time.time())}_2.png", img)
-                    raise e
+            loc = text_area
+
+            full_card_str = f"{card_to_abbrev(text)}{suit_full_name_to_abbrev(key)}"
+
+            # img1 = cv2.rectangle(img.copy(), (loc[0], loc[1]), (loc[2], loc[3]), (0, 255, 0), 2)
+            # cv2.putText(img1, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            #
+            # cv2.imshow("img", img1)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+
+            if text == "":
+                cv2.imwrite(f"error-{int(time.time())}.png", img)
+                cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
+                cv2.imwrite(f"error-{int(time.time())}_2.png", img)
+                raise ValueError("OCR failed to find card's text")
+
+            try:
+                ret.append((Card.new(full_card_str), loc))
+            except KeyError as e:
+                cv2.imwrite(f"error-{int(time.time())}.png", img)
+                cv2.putText(img, full_card_str, (loc[0], loc[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
+                cv2.imwrite(f"error-{int(time.time())}_2.png", img)
+                raise e
 
 
         # sort ret by x position (want left to right)
@@ -625,7 +719,7 @@ class TJPokerDetect(PokerImgDetect, PokerDetection):
         h = img.shape[0]
         w = img.shape[1]
         # img = img[h // 4 : h // 4 * 3, w // 4: w // 4 * 3, :]
-        subsection = (w // 4, h // 4, w // 4 * 3, h // 4 * 3)
+        subsection = (w // 4, h // 4, w // 4 * 3, h // 5 * 3)
         ret = self.get_full_cards(img, subsection=subsection)
 
         # shift the y position of the cards up 1/2th of the height of the image

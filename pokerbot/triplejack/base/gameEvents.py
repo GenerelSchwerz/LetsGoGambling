@@ -43,7 +43,6 @@ class TJEventEmitter(PokerEventHandler):
             if post_loc is not None:
                 big_blind = self.detector.ident_near_popup(img, post_loc)
 
-
         if small_blind == -1:
             if big_blind >= 0:
                 # small blind not detected, but big blind is. Assume small blind is half of big blind.
@@ -52,12 +51,15 @@ class TJEventEmitter(PokerEventHandler):
                 # have an error (didn't find correct bets), for now just allow it.
                 pass
 
-        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind)
+        self.emit(PokerEvents.NEW_HAND, hand, big_blind, small_blind, [], {})
         self.last_hand = hand
 
 
     def __emit_our_turn(self, img: cv2.typing.MatLike, hole_cards: list[Card], community_cards: list[Card], stage: int):
-        mid_pot = self.detector.middle_pot(img)
+        if len(community_cards) > 0:
+            mid_pot = self.detector.middle_pot(img)
+        else:
+            mid_pot = 0
         current_bets = self.detector.current_bets(img)
 
         if len(current_bets) == 0:
@@ -65,7 +67,7 @@ class TJEventEmitter(PokerEventHandler):
             facing_bet = 0
         else:        
             total_pot = sum(current_bets) + mid_pot
-            facing_bet = max(current_bets)
+            facing_bet = self.detector.current_bet(img)
 
         # table_players = self.detector.table_players(img)
 
@@ -145,12 +147,14 @@ class TJEventEmitter(PokerEventHandler):
             current_hand = self.detector.hole_cards(image)
 
             if current_hand != self.last_hand and (hand_len := len(current_hand)) == 2:
+                # \/ unreachable?
                 if hand_len < 2:
                     # shouldn't happen.
                     raise ValueError(f"Invalid number of hole cards (too little), found {hand_len}")
-                
+                # /\
+
                 self.__emit_new_hand(image, current_hand)
-            
+
 
 
         if current_hand is None:
@@ -166,6 +170,10 @@ class TJEventEmitter(PokerEventHandler):
             # we're not in a hand, so we're not going to check for our turn.
             self.our_turn = False
             self.last_stage = current_stage
+            self.emit(PokerEvents.TICK, current_stage, current_hand, community_cards)
+            return
+        elif len(current_hand) == 1:
+            print("Malformed hand, trying to scan again next tick")
             self.emit(PokerEvents.TICK, current_stage, current_hand, community_cards)
             return
 

@@ -24,22 +24,22 @@ class AlgoDecisionMode:
 
 
 def calculate_equity(
-    hole_cards: list[Card],
-    community_cards: list[Card],
-    active_opponents: int,
-    simulation_time=4000,  # how much time in ms spent on calculations MAX
-    num_simulations=2000,
-    # num successful simulations to be satisfied & return before simulation_time is up
-    threshold_hand_strength=PokerHands.HIGH_CARD,  # min strength of hands opponents will have at river
-    threshold_players=1,  # min players we assume satisfy threshold_hand_strength
-    # for example, with default arguments, we calculate our equity
-    # (the chance that our hand beats or chops with everyone else's hands)
-    # assuming that at least ONE player has HIGH_CARD or better by the river
-    # (or right now, if it's the river already)
-    # if threshold_hand_strength were PokerHands.THREE_OF_A_KIND and threshold_players was 2,
-    # then we calculate the chance that we beat/chop with everyone,
-    # assuming that AT LEAST two players have AT LEAST three of a kind
-    # also supports a threshold_hand_strength of X.5, which means to average 50/50 between X and X+1
+        hole_cards: list[Card],
+        community_cards: list[Card],
+        active_opponents: int,
+        simulation_time=4000,  # how much time in ms spent on calculations MAX
+        num_simulations=2000,
+        # num successful simulations to be satisfied & return before simulation_time is up
+        threshold_hand_strength=PokerHands.HIGH_CARD,  # min strength of hands opponents will have at river
+        threshold_players=1,  # min players we assume satisfy threshold_hand_strength
+        # for example, with default arguments, we calculate our equity
+        # (the chance that our hand beats or chops with everyone else's hands)
+        # assuming that at least ONE player has HIGH_CARD or better by the river
+        # (or right now, if it's the river already)
+        # if threshold_hand_strength were PokerHands.THREE_OF_A_KIND and threshold_players was 2,
+        # then we calculate the chance that we beat/chop with everyone,
+        # assuming that AT LEAST two players have AT LEAST three of a kind
+        # also supports a threshold_hand_strength of X.5, which means to average 50/50 between X and X+1
 ) -> float:
     evaluator = Evaluator()
     wins = 0
@@ -55,8 +55,8 @@ def calculate_equity(
         threshold = threshold + 0.5
         ceild = True
     while (
-        time.time() - start_time < simulation_time / 1000
-        and successful_simulations < num_simulations
+            time.time() - start_time < simulation_time / 1000
+            and successful_simulations < num_simulations
     ):
         deck = Deck()
         for card in hole_cards:
@@ -84,17 +84,17 @@ def calculate_equity(
         for i in range(active_opponents):
             eval_result = evaluator.evaluate(opponent_hole_cards[i], board)
             if (
-                evaluator.get_rank_class(eval_result)
-                <= (
-                    threshold
-                    - (
-                        diff
-                        if PokerHands.THREE_OF_A_KIND < threshold < PokerHands.HIGH_CARD
-                        else 0
+                    evaluator.get_rank_class(eval_result)
+                    <= (
+                            threshold
+                            - (
+                                    diff
+                                    if PokerHands.THREE_OF_A_KIND < threshold < PokerHands.HIGH_CARD
+                                    else 0
+                            )
                     )
-                )
-                if board_class >= PokerHands.PAIR
-                else eval_result < board_rank
+                    if board_class >= PokerHands.PAIR
+                    else eval_result < board_rank
             ):
                 # the if-else here means if the board has two pair or better on it,
                 # instead of assuming opponent has better than two pair,
@@ -113,11 +113,11 @@ def calculate_equity(
                     threshold += 1
                     ceild = True
             if all(
-                (
-                    eval_result := evaluator.evaluate(opponent_hole_cards[i], board),
-                    (eval_result >= our_rank),
-                )[1]
-                for i in range(active_opponents)
+                    (
+                            eval_result := evaluator.evaluate(opponent_hole_cards[i], board),
+                            (eval_result >= our_rank),
+                    )[1]
+                    for i in range(active_opponents)
             ):
                 wins += 1
     log.info(
@@ -128,20 +128,20 @@ def calculate_equity(
 
 
 def calculate_equity_preflop(
-    hole_cards: list[Card],
-    community_cards: list[Card],
-    active_opponents: int,
-    simulation_time=4000,  # how much time in ms spent on calculations MAX
-    num_simulations=2000,
-    # num successful simulations to be satisfied & return before simulation_time is up
-    threshold_percentile=60,  # percentile of hands opponents are playing
-    threshold_players=1,  # min players we assume satisfy threshold_percentile
-    # for example, with default arguments, we calculate our equity
-    # (the chance that our hand beats or chops with everyone's hands after a random run-out)
-    # assuming at least ONE player has hole cards in the top 60th percentile
-    # if threshold_hand_strength were 20 and threshold_players was 2,
-    # then we calculate the chance that we beat/chop with everyone after a random run-out,
-    # assuming AT LEAST two players have hands in the top 20th percentile
+        hole_cards: list[Card],
+        community_cards: list[Card],
+        active_opponents: int,
+        simulation_time=4000,  # how much time in ms spent on calculations MAX
+        num_simulations=2000,
+        # num successful simulations to be satisfied & return before simulation_time is up
+        threshold_percentile=60,  # percentile of hands opponents are playing
+        threshold_players=1,  # min players we assume satisfy threshold_percentile
+        # for example, with default arguments, we calculate our equity
+        # (the chance that our hand beats or chops with everyone's hands after a random run-out)
+        # assuming at least ONE player has hole cards in the top 60th percentile
+        # if threshold_hand_strength were 20 and threshold_players was 2,
+        # then we calculate the chance that we beat/chop with everyone after a random run-out,
+        # assuming AT LEAST two players have hands in the top 20th percentile
 ) -> float:
     evaluator = Evaluator()
     wins = 0
@@ -153,8 +153,8 @@ def calculate_equity_preflop(
     successful_simulations = 0
     percentile = threshold_percentile
     while (
-        time.time() - start_time < simulation_time / 1000
-        and successful_simulations < num_simulations
+            time.time() - start_time < simulation_time / 1000
+            and successful_simulations < num_simulations
     ):
         deck = Deck()
         for card in hole_cards:
@@ -168,7 +168,7 @@ def calculate_equity_preflop(
         threshold_satisfieds = 0
         for i in range(active_opponents):
             if is_in_percentile(
-                percentile, opponent_hole_cards[i], active_opponents > 1
+                    percentile, opponent_hole_cards[i], active_opponents > 1
             ):
                 threshold_satisfieds += 1
                 if threshold_satisfieds >= threshold_players:
@@ -183,11 +183,11 @@ def calculate_equity_preflop(
         if threshold_satisfieds >= threshold_players:
             successful_simulations += 1
             if all(
-                (
-                    eval_result := evaluator.evaluate(opponent_hole_cards[i], board),
-                    (eval_result >= our_rank),
-                )[1]
-                for i in range(active_opponents)
+                    (
+                            eval_result := evaluator.evaluate(opponent_hole_cards[i], board),
+                            (eval_result >= our_rank),
+                    )[1]
+                    for i in range(active_opponents)
             ):
                 wins += 1
     log.info(
@@ -211,16 +211,16 @@ class AlgoDecisions(PokerDecisionMaking):
 
     # this method is only called post flop
     def get_threshold(
-        self,
-        board_cards,
-        num_opponents,
-        game_stage,
-        pot_odds,
-        current_bet,
-        big_blind,
-        pot_value,
-        middle_pot_value,
-        hand_strength,
+            self,
+            board_cards,
+            num_opponents,
+            game_stage,
+            pot_odds,
+            current_bet,
+            big_blind,
+            pot_value,
+            middle_pot_value,
+            hand_strength,
     ):
         # odds of winning if the winner were randomly decided among all players
         lotto_chance = 1 / (1 + num_opponents)
@@ -258,15 +258,15 @@ class AlgoDecisions(PokerDecisionMaking):
                 threshold = PokerHands.merge(PokerHands.PAIR, PokerHands.TWO_PAIR)
 
         if (
-            hand_strength <= PokerHands.TWO_PAIR
+                hand_strength <= PokerHands.TWO_PAIR
         ):  # if we have a good hand, don't get too overzealous
             if threshold == PokerHands.HIGH_CARD:
                 threshold = PokerHands.PAIR
 
         elif (
-            threshold >= PokerHands.PAIR
-            and self.was_reraised
-            and current_bet > big_blind * 2
+                threshold >= PokerHands.PAIR
+                and self.was_reraised
+                and current_bet > big_blind * 2
         ):
             log.info("Was reraised, assume 2 pair or better 50% of the time")
             threshold = min(
@@ -274,9 +274,9 @@ class AlgoDecisions(PokerDecisionMaking):
             )
 
         elif (
-            game_stage == PokerStages.RIVER
-            and middle_pot_value >= 50 * big_blind
-            or current_bet >= 50 * big_blind
+                game_stage == PokerStages.RIVER
+                and middle_pot_value >= 50 * big_blind
+                or current_bet >= 50 * big_blind
         ):
             log.info(
                 "River, either >= 50 BB pot or >= 50 BB bet, assume 2 pair or better 50% of the time"
@@ -303,17 +303,17 @@ class AlgoDecisions(PokerDecisionMaking):
         return threshold
 
     def make_preflop_decision(
-        self,
-        going_all_in: bool,
-        bb_stack: int,
-        active_opponents: int,
-        hole_cards: list[Card],
-        community_cards: list[Card],
-        facing_bet: int,
-        big_blind: int,
-        stack_size: int,
-        min_bet: int,
-        pot_odds: float,
+            self,
+            going_all_in: bool,
+            bb_stack: int,
+            active_opponents: int,
+            hole_cards: list[Card],
+            community_cards: list[Card],
+            facing_bet: int,
+            big_blind: int,
+            stack_size: int,
+            min_bet: int,
+            pot_odds: float,
     ) -> PokerDecisionChoice:
         play_this_hand = False
         if going_all_in:
@@ -336,6 +336,12 @@ class AlgoDecisions(PokerDecisionMaking):
         if bb_stack < 15:
             percentile = 10
         log.info(f"Playing the best {percentile}% of hands")
+        if active_opponents < 4:
+            percentile += 10
+            log.info(f"Adding 10% to percentile because <=3 opponents")
+            if percentile > 40:
+                percentile = 40
+                log.info("Capping percentile at 40%")
         if is_in_percentile(percentile, hole_cards, active_opponents > 1):
             play_this_hand = True
         else:
@@ -348,7 +354,7 @@ class AlgoDecisions(PokerDecisionMaking):
             return fold_or_check(facing_bet)
 
         if (
-            facing_bet <= big_blind
+                facing_bet <= big_blind
         ):  # if no one has raised pre yet, we're gonna raise, bc that's good poker mmkay?
             raise_factor = 1
             if is_in_percentile(5, hole_cards, active_opponents > 1):
@@ -414,8 +420,8 @@ class AlgoDecisions(PokerDecisionMaking):
             )
             return PokerDecisionChoice.call()
 
-    
-    def on_new_hand(self, hole_cards: list[Card], big_blind: int, small_blind: int, players: list[Player], bets: dict[Player, float]):
+    def on_new_hand(self, hole_cards: list[Card], big_blind: int, small_blind: int, players: list[Player],
+                    bets: dict[Player, float]):
         log.info(
             f"New hand! Hole cards: {Card.ints_to_pretty_str(hole_cards)}, BB: {big_blind}, SB: {small_blind} + \
             Players: {players}, Bets: {bets}"
@@ -426,17 +432,17 @@ class AlgoDecisions(PokerDecisionMaking):
         # self.was_reraised = False
 
     def on_turn(
-        self,
-        hole_cards: list[Card],
-        community_cards: list[Card],
-        stage: int,
-        facing_bet: int,
-        min_bet: int,
-        mid_pot: int,
-        total_pot: int,
-        big_blind: int,
-        stack_size: int,
-        active_opponents: int,
+            self,
+            hole_cards: list[Card],
+            community_cards: list[Card],
+            stage: int,
+            facing_bet: int,
+            min_bet: int,
+            mid_pot: int,
+            total_pot: int,
+            big_blind: int,
+            stack_size: int,
+            active_opponents: int,
     ) -> PokerDecisionChoice:
 
         print(
@@ -451,7 +457,7 @@ class AlgoDecisions(PokerDecisionMaking):
         # new hand detection, not necessary if we do something with event listeners, but i'm just porting over code rn
 
         if self.current_stage > current_stage or (
-            self.hole_card_1 != hole_cards[0] or self.hole_card_2 != hole_cards[1]
+                self.hole_card_1 != hole_cards[0] or self.hole_card_2 != hole_cards[1]
         ):
             log.info("New hand detected")
             self.min_threshold = PokerHands.HIGH_CARD
@@ -493,7 +499,11 @@ class AlgoDecisions(PokerDecisionMaking):
         ###
 
         going_all_in = facing_bet >= stack_size
-        pot_odds = facing_bet / (total_pot + facing_bet)
+        if total_pot + facing_bet == 0:
+            pot_odds = 0.5
+            log.info("ERROR: FACING BET AND TOTAL POT ARE 0")
+        else:
+            pot_odds = facing_bet / (total_pot + facing_bet)
         log.info(f"Pot odds: {pot_odds}")
 
         # This is triplejack specific. People raise pre with shit hands. This would not fly on coinpoker.
@@ -555,9 +565,9 @@ class AlgoDecisions(PokerDecisionMaking):
             if self.current_stage == PokerStages.RIVER:
                 _, board_rank = evaluate_hand([], community_cards)
                 if (
-                    board_rank != PokerHands.TWO_PAIR
-                    and board_rank != PokerHands.THREE_OF_A_KIND
-                    and board_rank != PokerHands.FULL_HOUSE
+                        board_rank != PokerHands.TWO_PAIR
+                        and board_rank != PokerHands.THREE_OF_A_KIND
+                        and board_rank != PokerHands.FULL_HOUSE
                 ):
                     log.info(
                         "River, fh when no 2pair, 3kind, fh on board, equity is 100%"
@@ -565,7 +575,7 @@ class AlgoDecisions(PokerDecisionMaking):
                     equity = 1
             elif self.current_stage == PokerStages.TURN:
                 if not has_three_of_a_kind(community_cards) and not has_two_pair(
-                    community_cards
+                        community_cards
                 ):
                     log.info("Turn, fh when no 2pair, 3kind on board, equity is 100%")
                     equity = 1
@@ -603,10 +613,10 @@ class AlgoDecisions(PokerDecisionMaking):
         # finding the equity to size bet with (betting_equity), special cases described in log() statements
 
         if (
-            self.current_stage == PokerStages.RIVER
-            and total_pot >= 50 * big_blind
-            and active_opponents <= 2
-            and threshold >= PokerHands.PAIR
+                self.current_stage == PokerStages.RIVER
+                and total_pot >= 50 * big_blind
+                and active_opponents <= 2
+                and threshold >= PokerHands.PAIR
         ):
             betting_equity = calculate_equity(
                 hole_cards,
@@ -623,9 +633,9 @@ class AlgoDecisions(PokerDecisionMaking):
             # betting_equity = betting_equity / 2
             # ^ this was in original code but seems rather timid?
         elif (
-            equity < 0.7
-            and self.current_stage == PokerStages.RIVER
-            and total_pot >= 50 * big_blind
+                equity < 0.7
+                and self.current_stage == PokerStages.RIVER
+                and total_pot >= 50 * big_blind
         ):
             log.info("River, >=50BB pot, <70% equity, don't bet a lot")
             betting_equity = equity / 3
@@ -635,9 +645,9 @@ class AlgoDecisions(PokerDecisionMaking):
             betting_equity = equity / 2
 
             if (
-                self.currently_betting
-                and self.current_stage == PokerStages.FLOP
-                and facing_bet == 0
+                    self.currently_betting
+                    and self.current_stage == PokerStages.FLOP
+                    and facing_bet == 0
             ):
                 log.info(
                     "C-betting"
@@ -657,8 +667,8 @@ class AlgoDecisions(PokerDecisionMaking):
             ideal_bet = 0
         else:
             if (
-                equity < (1 / (active_opponents + 1))
-                and self.current_stage > PokerStages.FLOP
+                    equity < (1 / (active_opponents + 1))
+                    and self.current_stage > PokerStages.FLOP
             ):
                 # if we expect to win less than often than random chance, bet less, unless it's the flop
                 log.info("I don't think we're winning this one boys, bet less")
@@ -669,7 +679,7 @@ class AlgoDecisions(PokerDecisionMaking):
             else:
                 # calculating the bet at which the pot odds are equal to the equity
                 ideal_bet = (betting_equity * mid_pot) / (
-                    1 - (2 * betting_equity)
+                        1 - (2 * betting_equity)
                 )  # you can derive this equation yourself
             log.info(f"Ideal bet: {ideal_bet}")
         if ideal_bet < 0:
@@ -681,15 +691,15 @@ class AlgoDecisions(PokerDecisionMaking):
         if 0.75 * ideal_bet <= facing_bet or ideal_bet < min_bet:
 
             # BLUFFS
-            if facing_bet == 0:
+            if facing_bet == 0 and equity > 0.10 and facing_bet == 0:
                 bluff_frequency = (
                     0.3 * (2 if self.currently_bluffing else 1) + 0.1
                     if self.current_stage != PokerStages.PREFLOP
                     else 0
                 )
                 if (
-                    total_pot <= max(0.025 * stack_size, 12) * big_blind
-                    and random.random() < bluff_frequency
+                        total_pot <= max(0.025 * stack_size, 12) * big_blind
+                        and random.random() < bluff_frequency
                 ):
                     log.info(
                         f"Bluffing because no bet, small pot, and {bluff_frequency * 100}% hit"
@@ -699,9 +709,9 @@ class AlgoDecisions(PokerDecisionMaking):
                         int((0.5 + (0.5 * random.random())) * total_pot)
                     )
                 elif (
-                    total_pot <= max(0.05 * stack_size, 16) * big_blind
-                    and self.current_stage == PokerStages.RIVER
-                    and random.random() < bluff_frequency
+                        total_pot <= max(0.05 * stack_size, 16) * big_blind
+                        and self.current_stage == PokerStages.RIVER
+                        and random.random() < bluff_frequency
                 ):
                     log.info(
                         f"Bluffing because no bet, river, small pot and {bluff_frequency * 100}% hit"

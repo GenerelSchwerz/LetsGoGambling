@@ -82,6 +82,14 @@ class TJInteract(PokerInteract):
         self.driver: webdriver.Chrome = driver
         self.page = TJPage.get_page(self.driver)
 
+        self.call_location = None
+        self.fold_location = None
+        self.check_location = None
+        self.bet_location = None
+        self.raise_location = None
+        self.allin_location = None
+        self.plus_location = None
+
     def shutdown(self):
         return self.driver.quit()
 
@@ -139,8 +147,8 @@ class TJInteract(PokerInteract):
             with open(f"./midrun/canvas-{idx}.png", "wb") as f:
                 f.write(el.screenshot_as_png)
 
-            with open(f"./midrun/ss-{idx}.png", "wb") as f:
-                f.write(self.driver.get_screenshot_as_png())
+            # with open(f"./midrun/ss-{idx}.png", "wb") as f:
+            #     f.write(self.driver.get_screenshot_as_png())
             
             # print(img.shape)
             return img
@@ -158,7 +166,11 @@ class TJInteract(PokerInteract):
         if clicks > 20:
             clicks = int(clicks * (0.9 + (0.2 * random.random())))
 
-        press_plus = self.detector.plus_button(ss, threshold=0.8)
+        if self.plus_location is None:
+            press_plus = self.detector.plus_button(ss, threshold=0.8)
+            self.plus_location = press_plus
+        else:
+            press_plus = self.plus_location
         if press_plus is None:
             print("Could not find plus button")
             return False
@@ -200,7 +212,11 @@ class TJInteract(PokerInteract):
         if ss is None:
             ss = self._ss()
 
-        button = self.detector.check_button(ss, threshold=0.8)
+        if self.check_location is None:
+            button = self.detector.check_button(ss, threshold=0.8)
+            self.check_location = button
+        else:
+            button = self.check_location
 
         if button is None:
             return False
@@ -215,7 +231,12 @@ class TJInteract(PokerInteract):
 
         if ss is None:
             ss = self._ss()
-        button = self.detector.fold_button(ss, threshold=0.8)
+
+        if self.fold_location is None:
+            button = self.detector.fold_button(ss, threshold=0.8)
+            self.fold_location = button
+        else:
+            button = self.fold_location
 
         if button is None:
             return False
@@ -235,7 +256,9 @@ class TJInteract(PokerInteract):
         button = self.detector.call_button(ss, threshold=0.8)
 
         if button is None:
-            return False
+            button = self.detector.allin_button(ss, threshold=0.8)
+            if button is None:
+                return False
         
         self._canvas_click(*mid(button))
         return True

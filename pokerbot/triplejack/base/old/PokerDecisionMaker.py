@@ -197,7 +197,7 @@ def make_decision(hole_cards, board_cards, stack_size, pot_value, current_bet,
         # if current bet is at least 75% of ideal bet, call
         if 0.75 * ideal_bet <= current_bet or ideal_bet < min_bet:
             # BLUFFS
-            if current_bet == 0:
+            if current_bet == 0 and equity > 0.15:
                 if pot_value <= 8 * big_blind and random.random() < (0.3 if num_opponents > 1 else 0.5):
                     print(f"Bluffing because no bet, small pot, and {10 if num_opponents > 1 else 30}% hit")
                     return f"bet {int((0.5 + (0.5 * random.random())) * pot_value)}"
